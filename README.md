@@ -10,20 +10,20 @@ Predict housing prices using a regression algorithm.
 
 
 ## Future updates
-- [] Read in raw data
-- [] Clean data
-- [] Impute missing data
-- [] Check data
-- [] Engineer features
-- [] Reduce dimensionality
-- [] Save tidy data
-- [] EDA
-- [] Build model
-- [] Fit model
-- [] Cross-validate
-- [] Tune model
-- [] Test model
-- [] Write up results
+- [ ] Read in raw data
+- [ ] Clean data
+- [ ] Impute missing data
+- [ ] Check data
+- [ ] Engineer features
+- [ ] Reduce dimensionality
+- [ ] Save tidy data
+- [ ] EDA
+- [ ] Build model
+- [ ] Fit model
+- [ ] Cross-validate
+- [ ] Tune model
+- [ ] Test model
+- [ ] Write up results
 
 
 
