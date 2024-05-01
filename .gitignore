@@ -1,7 +1,11 @@
 .Rproj.user
+.Rapp.history
 .Rhistory
+*.Rproj
+.DS_Store
 .RData
 *.csv
 *.xls
 *.xls
 .Ruserdata
+/data
