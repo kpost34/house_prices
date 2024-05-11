@@ -7,5 +7,6 @@
 *.csv
 *.xls
 *.xls
+*.txt
 .Ruserdata
 /data

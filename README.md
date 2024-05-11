@@ -5,8 +5,7 @@ Predict housing prices using a regression algorithm.
 
 
 ## Technologies
-* RStudio 1.2.5033
-* R 3.6.2 ("Dark and Stormy Night")
+* R 4.3.0 ("Already Tomorrow")
 
 
 ## Future updates
