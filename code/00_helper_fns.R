@@ -1,13 +1,22 @@
 # Helper functions for Ames, IA, Housing Prices Project
 
 # Feature Engineering===============================================================================
+# Function to replace diagonal elements of a matrix with NAs
+replace_diag_na <- function(mat) {
+  diag(mat) <- NA
+  
+  return(mat)
+}
+
+
+
 # Function to show sale_price-factor bar plots and frequency plots and tables of factor
 explore_rare_cats <- function(data=df_house_icr, predictor) {
   nm_pred <- rlang::as_name(enquo(predictor))
   
   p1 <- data %>%
     select({{predictor}}, sale_price) %>%
-    mutate({{predictor}} := fct_reorder({{predictor}}, sale_price, .desc=TRUE)) %>%
+    mutate({{predictor}} := fct_reorder({{predictor}}, sale_price, .fun=mean, .desc=TRUE)) %>%
     ggplot(aes(x={{predictor}}, y=sale_price)) +
     stat_summary(geom="col", fun=mean, fill="blue") +
     stat_summary(geom="errorbar", fun.data=mean_se) +
