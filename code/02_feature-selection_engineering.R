@@ -1,11 +1,7 @@
 # Load Packages, Source Functions & Read in Imputed Data============================================
 #load packages
 library(pacman) 
-pacman::p_load(here, tidyverse, cowplot, rstatix)
-               # janitor, skimr, visdat, naniar, finalfit, mice, rstatix, , 
-               # cowplot, rstatix)
-               
-               # GGally, rsample, tidymodels)
+pacman::p_load(here, tidyverse, janitor, cowplot, rstatix)
 
 #source functions
 source(here("code", "00_helper_fns.R"))
@@ -68,23 +64,14 @@ df_house_i %>%
 #roof_matl
 df_house_i %>%
   count(roof_matl)
-(1434/1460) * 100 #98.22 % CompShg
-#given such small counts in non-CompShg category, these would need to show a strong relationship
-  #with sale_price when combined
+(1434/1460) * 100 #98.22 % CompShg, so drop (only 26 in 'Other' category which is insufficient for
+  #cross-validation)
 
-df_house_i %>%
-  mutate(roof_matl=as.character(roof_matl),
-         roof_matl=ifelse(roof_matl=="CompShg", roof_matl, "Other")) %>%
-  ggplot(aes(x=roof_matl, y=sale_price)) +
-  # geom_boxplot()
-  stat_summary(geom="bar", fun=mean) +
-  stat_summary(geom="errorbar", fun.data=mean_se)
-#let's keep this for now and consider rare-label encoding
 
 
 ### Remove said features
 df_house_i %>%
-  select(-c(street, utilities, condition2, pool_qc)) -> df_house_ic
+  select(-c(street, utilities, condition2, pool_qc, roof_matl)) -> df_house_ic
 
 
 
@@ -257,10 +244,9 @@ list_rare_cat_viz <- feat_rare_cat %>%
 #ms_zoning: 
 list_rare_cat_viz["ms_zoning"] 
 explore_rare_cats(predictor=ms_zoning) 
-#combine RH and C (all) into 'other' 
-#RH has slightly higher sale price avg than RM, but fewer samples and larger variance
-#makes more sense to make an other category
-#Other: RH, C (all)
+#combine RH, RM, and C (all) into 'other' 
+#these three have lowest sale prices so combine into other category
+#Other: RH, RM, C (all)
 
 #lot_config
 list_rare_cat_viz["lot_config"]
@@ -278,27 +264,22 @@ list_rare_cat_viz["neighborhood"]
 
 #condition1 
 list_rare_cat_viz["condition1"]
-#many groups with small percentages so need to group multiple to hit 2% threshhold
+#many groups with small percentages so group RR categories together and add positive conds to Norm
 #RRnear: RRAn, RRAe, RRNn, RRNe
-#PosClose: PosN, PosA
+#NormPos: Norm, PosN, PosA
 
 #house_style   
 list_rare_cat_viz["house_style"] 
 #group 2.5Fin with 2Story b/c similar stories and finished status and mean sale_price
-#group the other two rare cats together b/c both have unfinished second story and a half story
+#group the other two rare cats together with SFoyer into 'Other' b/c both have unfinished second story 
+  #and a half story and SFoyer has frequency of 2.5% and with weak sale price
 #Story_2_2.5: 2Story, 2.5Fin
-#Unf_half: 1.5Unf, 2.5Unf
+#Other: 1.5Unf, 2.5Unf, SFoyer
 
 #roof_style  
 list_rare_cat_viz["roof_style"] 
 #group the four rare categories as 'other' b/c don't see any other relationships
 #Other: Flat, Gambrel, Mansard, Shed
-
-#roof_matl
-list_rare_cat_viz["roof_matl"] 
-#per notes from earlier, I decided to keep roof_matl b/c of differences in relationship with sale
-  #price if look at CompShg vs Other, so will group this way
-#Other: Tar&Grv, WdShngl, WdShake, ClyTile, Membran, Metal, Roll
 
 #exterior1st    
 list_rare_cat_viz["exterior1st"] 
@@ -341,8 +322,8 @@ list_rare_cat_viz["misc_feature"]
 list_rare_cat_viz["sale_type"] 
 #the problem here is that the contract categories could go together but combined the percentage is
   #too low. The Oth category is extremely rare and has no natural combination, so let's combine all
-  #rare ones into a larger Other category
-#Other: ConLD, ConLI, ConLw, CWD, Oth, Con
+  #rare ones with COD into a larger Other category
+#Other: COD, ConLD, ConLI, ConLw, CWD, Oth, Con
 
 #sale_condition
 list_rare_cat_viz["sale_condition"] 
@@ -389,8 +370,9 @@ list_rare_ord_viz["land_slope"]
 
 #overall_qual
 list_rare_ord_viz["overall_qual"] 
-#combine 1-4 since overall quality does align well with sale_price
+#combine 1-4 since overall quality does align well with sale_price; also combine 9 & 10 b/c both rare
 #4_and_less: 1, 2, 3, 4
+#9_10: 9, 10
 
 #exter_qual
 list_rare_ord_viz["exter_qual"] 
@@ -445,7 +427,7 @@ list_rare_ord_viz["fireplace_qu"]
 
 #garage_qual
 list_rare_ord_viz["garage_qual"] 
-#aligns well with sale price except that NG is above Po; Gd, Ex, and Po are are so group the
+#aligns well with sale price except that NG is above Po; Gd, Ex, and Po are rare so group the
   #former two with TA and the latter with Fa
 #Ex_Gd_TA: Ex, Gd, TA
 #Fa_Po: Fa, Po
@@ -456,23 +438,26 @@ list_rare_ord_viz["garage_cond"]
 #Ex_Gd_TA: Ex, Gd, TA
 #Fa_Po: Fa, Po
 
+#fence
+list_rare_ord_viz["fence"] 
+#combine two most infrequent categories which also are associated with lowest sale prices
+#Ww: GdWo, MnWw
 
-### Collapsing
+
+## Collapsing
 df_house_icr %>% 
   mutate(
     #factors (unordered)
-    ms_zoning=fct_collapse(ms_zoning, Other=c("RH", "C (all)")),
+    ms_zoning=fct_collapse(ms_zoning, Other=c("RH", "RM", "C (all)")),
     lot_config=fct_collapse(lot_config, FR2_3=c("FR2", "FR3")),
     neighborhood=fct_collapse(neighborhood, Other1=c("StoneBr", "Veenker")),
     neighborhood=fct_collapse(neighborhood, Other2=c("ClearCr", "Blmngtn")),
     neighborhood=fct_collapse(neighborhood, Other3=c("SWISU", "MeadowV", "BrDale", "NPkVill", "Blueste")),
     condition1=fct_collapse(condition1, RRnear=c("RRAn", "RRAe", "RRNn", "RRNe")),
-    condition1=fct_collapse(condition1, PosClose=c("PosN", "PosA")),
+    condition1=fct_collapse(condition1, NormPos=c("Norm", "PosN", "PosA")),
     house_style=fct_collapse(house_style, Story_2_2.5=c("2Story", "2.5Fin")),
-    house_style=fct_collapse(house_style, Unf_half=c("1.5Unf", "2.5Unf")),
+    house_style=fct_collapse(house_style, Other=c("SFoyer", "1.5Unf", "2.5Unf")),
     roof_style=fct_collapse(roof_style, Other=c("Flat", "Gambrel", "Mansard", "Shed")),
-    roof_matl=fct_collapse(roof_matl, Other=c("Tar&Grv", "WdShngl", "WdShake", "ClyTile", "Membran",
-                                              "Metal", "Roll")),
     exterior1st=fct_collapse(exterior1st, Other=c("WdShing", "Stucco", "AsbShng", "BrkComm", "Stone",
                                                   "AsphShn", "CBlock", "ImStucc")),
     mas_vnr_type=fct_collapse(mas_vnr_type, BrkFace_Cmn=c("BrkFace", "BrkCmn")),
@@ -480,12 +465,14 @@ df_house_icr %>%
     heating=fct_collapse(heating, Other=c("GasW", "Grav", "Wall", "OthW", "Floor")),
     garage_type=fct_collapse(garage_type, Other=c("Basment", "CarPort", "2Types")),
     misc_feature=fct_collapse(misc_feature, MF=c("Shed", "Gar2", "Othr", "TenC")),
-    sale_type=fct_collapse(sale_type, Other=c("ConLD", "ConLI", "ConLw", "CWD", "Oth", "Con")),
+    sale_type=fct_collapse(sale_type, Other=c("COD", "ConLD", "ConLI", "ConLw", "CWD", "Oth", "Con")),
     sale_condition=fct_collapse(sale_condition, Other=c("Family", "Alloca", "AdjLand")),
+    
     #ordered factors
     lot_shape=fct_collapse(lot_shape, IR2_3=c("IR2", "IR3")), 
     land_slope=fct_collapse(land_slope, Mod_Sev=c("Mod", "Sev")),
     overall_qual=fct_collapse(overall_qual, `4_and_less`=c("1", "2", "3", "4")),
+    overall_qual=fct_collapse(overall_qual, `9_10`=c("9", "10")),
     exter_qual=fct_collapse(exter_qual, TA_and_less=c("Po", "Fa", "TA")),
     exter_cond=fct_collapse(exter_cond, Ex_Gd=c("Ex", "Gd")),
     exter_cond=fct_collapse(exter_cond, Fa_Po=c("Fa", "Po")),
@@ -497,10 +484,11 @@ df_house_icr %>%
     functional=fct_collapse(functional, Poor=c("Mod", "Maj1", "Maj2", "Sev", "Sal")),
     fireplace_qu=fct_collapse(fireplace_qu, Ex_Gd=c("Ex", "Gd")),
     fireplace_qu=fct_collapse(fireplace_qu, Fa_Po=c("Fa", "Po")),
-    garage_qual=fct_collapse(garage_qual, Ex_Gd=c("Ex", "Gd")),
+    garage_qual=fct_collapse(garage_qual, Ex_Gd_TA=c("Ex", "Gd", "TA")),
     garage_qual=fct_collapse(garage_qual, Fa_Po=c("Fa", "Po")),
-    garage_cond=fct_collapse(garage_cond, Ex_Gd=c("Ex", "Gd")),
-    garage_cond=fct_collapse(garage_cond, Fa_Po=c("Fa", "Po"))) -> df_house_icrc
+    garage_cond=fct_collapse(garage_cond, Ex_Gd_TA=c("Ex", "Gd", "TA")),
+    garage_cond=fct_collapse(garage_cond, Fa_Po=c("Fa", "Po")),
+    fence=fct_collapse(fence, Ww=c("GdWo", "MnWw"))) -> df_house_icrc
 #last c = collapsing
     
 
@@ -641,38 +629,9 @@ num_preds1 <- num_preds[1:12]
 num_preds2 <- num_preds[13:24]
 num_preds3 <- num_preds[25:33]
 
-df_house_icrc %>%
-  select(all_of(num_preds1)) %>%
-  pivot_longer(cols=everything(), names_to="variable", values_to="value") %>%
-  ggplot(aes(sample=value, color=variable)) +
-  stat_qq() +
-  stat_qq_line() +
-  facet_wrap(~variable, scales="free") +
-  theme_bw() +
-  theme(legend.position="none")
-
-df_house_icrc %>%
-  select(all_of(num_preds2)) %>%
-  pivot_longer(cols=everything(), names_to="variable", values_to="value") %>%
-  ggplot(aes(sample=value, color=variable)) +
-  stat_qq() +
-  stat_qq_line() +
-  facet_wrap(~variable, scales="free") +
-  theme_bw() +
-  theme(legend.position="none")
-
-df_house_icrc %>%
-  select(all_of(num_preds3)) %>%
-  pivot_longer(cols=everything(), names_to="variable", values_to="value") %>%
-  ggplot(aes(sample=value, color=variable)) +
-  stat_qq() +
-  stat_qq_line() +
-  facet_wrap(~variable, scales="free") +
-  theme_bw() +
-  theme(legend.position="none")
-
-#NOTE: will need to functionalize these then map over it
-
+make_qqplots(num_preds1)
+make_qqplots(num_preds2)
+make_qqplots(num_preds3)
 #major concerns about normal distribution
 
 df_house_icrc %>%
@@ -709,7 +668,7 @@ df_house_icrc %>%
 #output fp
 out_fp <- here("data", "tidy_data", "train_tidy.rds")
 
-saveRDS(df_house_icrcn, out_fp)
+# saveRDS(df_house_icrcn, out_fp)
 
 
 
