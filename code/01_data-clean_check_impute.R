@@ -1,10 +1,6 @@
 # Load Packages=====================================================================================
 library(pacman) 
 pacman::p_load(here, tidyverse, janitor, skimr, visdat, naniar, finalfit, mice)
-               
-               
-               # rstatix, GGally, 
-               # cowplot, rstatix, rsample, tidymodels)
 
 
 
@@ -101,18 +97,40 @@ df_house <- df_house0 %>%
 
 #NOTE: garage_yr_blt is incorrect for max year for test data --> replace with NA
 
+
+#ASIDE--------------------------------------------------------------------
 #check that factor levels in training data are in test data and vice versa
 #ran code with each DF loaded
-train_lev <- df_house %>%
-  select(where(is.factor)) %>%
-  purrr::map(levels)
-
+# train_lev <- df_house %>%
+#   select(where(is.factor)) %>%
+#   purrr::map(levels)
+# 
 # test_lev <- df_house %>%
 #   select(where(is.factor)) %>%
 #   purrr::map(levels)
-
-# setequal(train_lev, test_lev) #TRUE
-
+# 
+# setdiff(train_lev, test_lev) #FALSE
+# setdiff(train_lev, test_lev) %>%
+#   names() -> diff_nm #names of factors
+# 
+# #final set of factors in training data
+# fp_train <- here("data", "tidy_data", "train_tidy.rds")
+# df_house_icrcn <- readRDS(fp_train) 
+# df_house_icrcn %>%
+#   select(where(is.factor)) %>%
+#   names() -> nm_fct_train
+# 
+# #which factors have different levels b/t train and test data AND are in final training set
+# nm_isect <- intersect(nm_fct_train, diff_nm) 
+# nm_isect #house_style, exterior1st, heating, garage_type, misc_feature
+# 
+# #which of these five factors have levels unique to test data
+# nm_isect %>%
+#   purrr::map(function(x) {
+#     setdiff(test_lev[[x]], train_lev[[x]])
+#   }) %>%
+#   set_names(nm_isect) #none for all
+#----------------------------------------------------------------------------
 
 
 # Preliminary Data Checking=========================================================================

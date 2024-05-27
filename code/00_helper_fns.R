@@ -61,4 +61,19 @@ explore_rare_cats <- function(data=df_house_icr, predictor) {
 
 
 
+# Function to create batches of qqplots
+make_qqplots <- function(preds) {
+  df_house_icrc %>%
+    select(all_of(preds)) %>%
+    pivot_longer(cols=everything(), names_to="variable", values_to="value") %>%
+    ggplot(aes(sample=value, color=variable)) +
+    stat_qq() +
+    stat_qq_line() +
+    facet_wrap(~variable, scales="free") +
+    theme_bw() +
+    theme(legend.position="none")
+}
+
+
+
 
