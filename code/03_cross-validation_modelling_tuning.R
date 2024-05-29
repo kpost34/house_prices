@@ -1,7 +1,7 @@
 # Load Packages and Data============================================================================
 #load packages
 library(pacman) 
-pacman::p_load(here, tidyverse, rsample, tidymodels)
+pacman::p_load(here, tidyverse, rsample, tidymodels, vip)
 
 #read in data
 in_fp <- here("data", "tidy_data", "train_tidy.rds")
@@ -48,7 +48,7 @@ collect_metrics(fit_rs_dt)
 ## Random Forest--------------------
 ### Define model
 mod_rf <- rand_forest() %>%
-  set_engine("ranger") %>%
+  set_engine("ranger", importance="impurity") %>%
   set_mode("regression") %>%
   translate()
 
@@ -129,7 +129,7 @@ fit_rs_tune_dt <- wf_tune_dt %>%
 
 
 ### Assess performance
-collect_metrics(fit_rs_tune_dt) %>% View()
+collect_metrics(fit_rs_tune_dt) 
 
 fit_rs_tune_dt %>%
   show_best(metric="rsq")
@@ -145,7 +145,7 @@ mod_tune_rf <- rand_forest(
   trees = tune(),
   min_n = tune()
 ) %>%
-  set_engine("ranger") %>%
+  set_engine("ranger", importance="impurity") %>%
   set_mode("regression") %>%
   translate()
 
@@ -173,7 +173,7 @@ fit_rs_tune_rf <- wf_tune_rf %>%
 
 
 ### Assess performance
-collect_metrics(fit_rs_tune_rf) %>% View()
+collect_metrics(fit_rs_tune_rf)
 
 fit_rs_tune_rf %>%
   show_best(metric="rsq")
@@ -263,12 +263,14 @@ wf_rf_final
 
 ## Fit model to training data and use test data to evaluate model 
 final_fit <- fit(wf_rf_final, df_house_train) %>%
-  extract_fit_parsnip()
+  extract_fit_parsnip() 
 
 
 ## Model diagnostics
-# vi(final_fit)
-vip(final_fit)
+final_fit
+
+vi(final_fit) 
+vip(final_fit, num_features=20)
 
 
 
