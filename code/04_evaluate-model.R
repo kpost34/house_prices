@@ -35,7 +35,7 @@ summary(df_test)
 #by type
 skim_by_type(data=df_test, fn=is.character)
 skim_by_type(data=df_test, fn=is.factor)
-skim_by_type(data=df_test, fn=is.numeric)
+skim_by_type(data=df_test, fn=is.numeric) 
 
 
 
@@ -63,5 +63,65 @@ map_int(df_test, function(x) sum(is.na(x))) %>%
   filter(n_na > 0) %>%
   mutate(pct_na=(n_na/1460) * 100) %>%
   arrange(desc(n_na)) 
+#lot_frontage: ~15.5%
+#mas_vnr_type & mas_vnr_area: ~1%
+#other 16: < .3%
+
+
+## Data imputation using mice method "cart"--------------------
+### Imputation using CART
+df_test %>%
+  mice(method="rf", m=2, maxit=2) %>%
+  complete() %>%
+  as_tibble() -> df_test_i
+
+skim(df_test_i)
+#note: utilities was not imputed; however, utilities gets dropped due to constancy
+
+
+### Compare pre- and post-imputation
+vis_compare(df_test, df_test_i)
+
+vis_compare(df_test %>%
+              select(starts_with("garage")), 
+            df_test_i %>%
+              select(starts_with("garage")))
+
+
+
+# Feature Selection: Drop Low 'Variance' (frequency) & Highly Correlated Features===================
+df_test_i %>%
+  #drop low-variance features
+  select(-c(street, utilities, condition2, pool_qc, roof_matl)) %>%
+  #drop highly correlated features
+  select(-c(overall_cond, ms_sub_class, exterior2nd)) -> df_test_icr 
+
+
+
+# Feature Engineering: Rare-label Encoding & Feature Scaling=========================================
+
+
+df_test_icr %>%
+  bin_rare_levels() -> df_test_icrc
+
+tabyl(df_test_icrc, house_style) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

@@ -445,52 +445,55 @@ list_rare_ord_viz["fence"]
 
 
 ## Collapsing
-df_house_icr %>% 
-  mutate(
-    #factors (unordered)
-    ms_zoning=fct_collapse(ms_zoning, Other=c("RH", "RM", "C (all)")),
-    lot_config=fct_collapse(lot_config, FR2_3=c("FR2", "FR3")),
-    neighborhood=fct_collapse(neighborhood, Other1=c("StoneBr", "Veenker")),
-    neighborhood=fct_collapse(neighborhood, Other2=c("ClearCr", "Blmngtn")),
-    neighborhood=fct_collapse(neighborhood, Other3=c("SWISU", "MeadowV", "BrDale", "NPkVill", "Blueste")),
-    condition1=fct_collapse(condition1, RRnear=c("RRAn", "RRAe", "RRNn", "RRNe")),
-    condition1=fct_collapse(condition1, NormPos=c("Norm", "PosN", "PosA")),
-    house_style=fct_collapse(house_style, Story_2_2.5=c("2Story", "2.5Fin")),
-    house_style=fct_collapse(house_style, Other=c("SFoyer", "1.5Unf", "2.5Unf")),
-    roof_style=fct_collapse(roof_style, Other=c("Flat", "Gambrel", "Mansard", "Shed")),
-    exterior1st=fct_collapse(exterior1st, Other=c("WdShing", "Stucco", "AsbShng", "BrkComm", "Stone",
-                                                  "AsphShn", "CBlock", "ImStucc")),
-    mas_vnr_type=fct_collapse(mas_vnr_type, BrkFace_Cmn=c("BrkFace", "BrkCmn")),
-    foundation=fct_collapse(foundation, Other=c("Slab", "Stone", "Wood")),
-    heating=fct_collapse(heating, Other=c("GasW", "Grav", "Wall", "OthW", "Floor")),
-    garage_type=fct_collapse(garage_type, Other=c("Basment", "CarPort", "2Types")),
-    misc_feature=fct_collapse(misc_feature, MF=c("Shed", "Gar2", "Othr", "TenC")),
-    sale_type=fct_collapse(sale_type, Other=c("COD", "ConLD", "ConLI", "ConLw", "CWD", "Oth", "Con")),
-    sale_condition=fct_collapse(sale_condition, Other=c("Family", "Alloca", "AdjLand")),
-    
-    #ordered factors
-    lot_shape=fct_collapse(lot_shape, IR2_3=c("IR2", "IR3")), 
-    land_slope=fct_collapse(land_slope, Mod_Sev=c("Mod", "Sev")),
-    overall_qual=fct_collapse(overall_qual, `4_and_less`=c("1", "2", "3", "4")),
-    overall_qual=fct_collapse(overall_qual, `9_10`=c("9", "10")),
-    exter_qual=fct_collapse(exter_qual, TA_and_less=c("Po", "Fa", "TA")),
-    exter_cond=fct_collapse(exter_cond, Ex_Gd=c("Ex", "Gd")),
-    exter_cond=fct_collapse(exter_cond, Fa_Po=c("Fa", "Po")),
-    bsmt_cond=fct_collapse(bsmt_cond, Ex_Gd=c("Ex", "Gd")),
-    bsmt_cond=fct_collapse(bsmt_cond, Fa_Po=c("Fa", "Po")),
-    bsmt_fin_type2=fct_collapse(bsmt_fin_type2, ALQ_GLQ=c("ALQ", "GLQ")),
-    heating_qc=fct_collapse(heating_qc, Fa_Po=c("Fa", "Po")),
-    electrical=fct_collapse(electrical, FuseF_P_Mix=c("FuseF", "FuseP", "Mix")),
-    functional=fct_collapse(functional, Poor=c("Mod", "Maj1", "Maj2", "Sev", "Sal")),
-    fireplace_qu=fct_collapse(fireplace_qu, Ex_Gd=c("Ex", "Gd")),
-    fireplace_qu=fct_collapse(fireplace_qu, Fa_Po=c("Fa", "Po")),
-    garage_qual=fct_collapse(garage_qual, Ex_Gd_TA=c("Ex", "Gd", "TA")),
-    garage_qual=fct_collapse(garage_qual, Fa_Po=c("Fa", "Po")),
-    garage_cond=fct_collapse(garage_cond, Ex_Gd_TA=c("Ex", "Gd", "TA")),
-    garage_cond=fct_collapse(garage_cond, Fa_Po=c("Fa", "Po")),
-    fence=fct_collapse(fence, Ww=c("GdWo", "MnWw"))) -> df_house_icrc
+# df_house_icr %>% 
+#   mutate(
+#     #factors (unordered)
+#     ms_zoning=fct_collapse(ms_zoning, Other=c("RH", "RM", "C (all)")),
+#     lot_config=fct_collapse(lot_config, FR2_3=c("FR2", "FR3")),
+#     neighborhood=fct_collapse(neighborhood, Other1=c("StoneBr", "Veenker")),
+#     neighborhood=fct_collapse(neighborhood, Other2=c("ClearCr", "Blmngtn")),
+#     neighborhood=fct_collapse(neighborhood, Other3=c("SWISU", "MeadowV", "BrDale", "NPkVill", "Blueste")),
+#     condition1=fct_collapse(condition1, RRnear=c("RRAn", "RRAe", "RRNn", "RRNe")),
+#     condition1=fct_collapse(condition1, NormPos=c("Norm", "PosN", "PosA")),
+#     house_style=fct_collapse(house_style, Story_2_2.5=c("2Story", "2.5Fin")),
+#     house_style=fct_collapse(house_style, Other=c("SFoyer", "1.5Unf", "2.5Unf")),
+#     roof_style=fct_collapse(roof_style, Other=c("Flat", "Gambrel", "Mansard", "Shed")),
+#     exterior1st=fct_collapse(exterior1st, Other=c("WdShing", "Stucco", "AsbShng", "BrkComm", "Stone",
+#                                                   "AsphShn", "CBlock", "ImStucc")),
+#     mas_vnr_type=fct_collapse(mas_vnr_type, BrkFace_Cmn=c("BrkFace", "BrkCmn")),
+#     foundation=fct_collapse(foundation, Other=c("Slab", "Stone", "Wood")),
+#     heating=fct_collapse(heating, Other=c("GasW", "Grav", "Wall", "OthW", "Floor")),
+#     garage_type=fct_collapse(garage_type, Other=c("Basment", "CarPort", "2Types")),
+#     misc_feature=fct_collapse(misc_feature, MF=c("Shed", "Gar2", "Othr", "TenC")),
+#     sale_type=fct_collapse(sale_type, Other=c("COD", "ConLD", "ConLI", "ConLw", "CWD", "Oth", "Con")),
+#     sale_condition=fct_collapse(sale_condition, Other=c("Family", "Alloca", "AdjLand")),
+#     
+#     #ordered factors
+#     lot_shape=fct_collapse(lot_shape, IR2_3=c("IR2", "IR3")), 
+#     land_slope=fct_collapse(land_slope, Mod_Sev=c("Mod", "Sev")),
+#     overall_qual=fct_collapse(overall_qual, `4_and_less`=c("1", "2", "3", "4")),
+#     overall_qual=fct_collapse(overall_qual, `9_10`=c("9", "10")),
+#     exter_qual=fct_collapse(exter_qual, TA_and_less=c("Po", "Fa", "TA")),
+#     exter_cond=fct_collapse(exter_cond, Ex_Gd=c("Ex", "Gd")),
+#     exter_cond=fct_collapse(exter_cond, Fa_Po=c("Fa", "Po")),
+#     bsmt_cond=fct_collapse(bsmt_cond, Ex_Gd=c("Ex", "Gd")),
+#     bsmt_cond=fct_collapse(bsmt_cond, Fa_Po=c("Fa", "Po")),
+#     bsmt_fin_type2=fct_collapse(bsmt_fin_type2, ALQ_GLQ=c("ALQ", "GLQ")),
+#     heating_qc=fct_collapse(heating_qc, Fa_Po=c("Fa", "Po")),
+#     electrical=fct_collapse(electrical, FuseF_P_Mix=c("FuseF", "FuseP", "Mix")),
+#     functional=fct_collapse(functional, Poor=c("Mod", "Maj1", "Maj2", "Sev", "Sal")),
+#     fireplace_qu=fct_collapse(fireplace_qu, Ex_Gd=c("Ex", "Gd")),
+#     fireplace_qu=fct_collapse(fireplace_qu, Fa_Po=c("Fa", "Po")),
+#     garage_qual=fct_collapse(garage_qual, Ex_Gd_TA=c("Ex", "Gd", "TA")),
+#     garage_qual=fct_collapse(garage_qual, Fa_Po=c("Fa", "Po")),
+#     garage_cond=fct_collapse(garage_cond, Ex_Gd_TA=c("Ex", "Gd", "TA")),
+#     garage_cond=fct_collapse(garage_cond, Fa_Po=c("Fa", "Po")),
+#     fence=fct_collapse(fence, Ww=c("GdWo", "MnWw"))) -> df_house_icrc
 #last c = collapsing
-    
+
+df_house_icr %>%
+  bin_rare_levels() -> df_house_icrc
+#last c = collapsing
 
   
 # Feature Engineering: Discretization===============================================================
@@ -618,17 +621,6 @@ df_house_icrc %>%
 
 
 ## Check for normal distribution
-num_preds <- tab_cor_pred_dep %>%
-  pull(predictor) %>%
-  unique() %>%
-  sort() 
-
-length(num_preds)
-
-num_preds1 <- num_preds[1:12]
-num_preds2 <- num_preds[13:24]
-num_preds3 <- num_preds[25:33]
-
 make_qqplots(num_preds1)
 make_qqplots(num_preds2)
 make_qqplots(num_preds3)
@@ -645,13 +637,6 @@ df_house_icrc %>%
 
 ## Normalization
 #non-normal data, different scales of measurement
-normalize <- function(var) {
-  norm_var <- (var - min(var))/(max(var) - min(var))
-  
-  return(norm_var)
-}
-
-
 df_house_icrc %>%
   mutate(
     across(.cols=all_of(num_preds),

@@ -213,6 +213,7 @@ map_int(df_house, function(x) sum(is.na(x))) %>%
   mutate(pct_na=(n_na/1460) * 100) %>%
   arrange(desc(n_na)) 
 #6 cols with at least one NA
+#3 cols with one NA
 #1 col > .6% missing (lot_frontage)
 
 
@@ -300,6 +301,5 @@ cor(log(df_house_i$lot_frontage), df_house_i$sale_price)^2 #r2 = .105
 out_fp <- here("data", "tidy_data", "train_imputed.rds")
 
 # saveRDS(df_house_i, out_fp)
-
 
 
