@@ -35,3 +35,19 @@ fence_levs <- c("GdPrv", "MnPrv", "GdWo", "MnWw", "NFe")
   #so should all other NA values for garage-related variables
 
 
+
+# Objects for Feature Engineering===================================================================
+
+num_preds <- tab_cor_pred_dep %>%
+  pull(predictor) %>%
+  unique() %>%
+  sort() 
+
+length(num_preds)
+
+num_preds1 <- num_preds[1:12]
+num_preds2 <- num_preds[13:24]
+num_preds3 <- num_preds[25:33]
+
+
+
