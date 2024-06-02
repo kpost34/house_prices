@@ -37,10 +37,15 @@ fence_levs <- c("GdPrv", "MnPrv", "GdWo", "MnWw", "NFe")
 
 
 # Objects for Feature Engineering===================================================================
+## Read in data for objects
+fp_clean_train <- here("data", "tidy_data", "train_tidy.rds")
+df_clean_train <- readRDS(fp_clean_train)
 
-num_preds <- tab_cor_pred_dep %>%
-  pull(predictor) %>%
-  unique() %>%
+## Create objects
+num_preds <- df_clean_train %>%
+  select(where(is.numeric)) %>%
+  select(!sale_price) %>%
+  names() %>%
   sort() 
 
 length(num_preds)
@@ -49,5 +54,6 @@ num_preds1 <- num_preds[1:12]
 num_preds2 <- num_preds[13:24]
 num_preds3 <- num_preds[25:33]
 
+rm(fp_clean_train, df_clean_train)
 
 

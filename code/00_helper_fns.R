@@ -193,11 +193,25 @@ make_qqplots <- function(preds) {
 
 
 ## Function to normalize data
+### Normalization equation
 normalize <- function(var) {
   norm_var <- (var - min(var))/(max(var) - min(var))
   
   return(norm_var)
 }
+
+
+### Wrapper function
+norm_num_preds <- function(data, vec_preds) {
+  data %>%
+    mutate(
+      across(.cols=all_of(vec_preds),
+             ~normalize(.x))
+    ) -> data1
+  
+  return(data1)
+}
+
 
 
 
