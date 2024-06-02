@@ -637,13 +637,17 @@ df_house_icrc %>%
 
 ## Normalization
 #non-normal data, different scales of measurement
-df_house_icrc %>%
-  mutate(
-    across(.cols=all_of(num_preds),
-           ~normalize(.x))
-  ) -> df_house_icrcn
-#n = normalization
+# df_house_icrc %>%
+#   mutate(
+#     across(.cols=all_of(num_preds),
+#            ~normalize(.x))
+#   ) -> df_house_icrcn
+# #n = normalization
 
+#functionalized
+df_house_icrc %>%
+  norm_num_preds(vec_preds=num_preds) -> df_house_icrcn
+#n = normalization
 
 
 # Write Clean Training Data to File=================================================================
