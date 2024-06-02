@@ -1,3 +1,11 @@
+#04_prep-test-data.R
+
+#This script follows the prep work of the training data by 1) performing initial data checking and
+  #cleaning, 2) assessing missingness and implementing same imputation method as training data, 
+  #3) employing feature selection and engineering that mirrors training data handling, and 
+  #4) writes tidied test dataframe to file
+
+
 # Load Packages, Objects, Functions, & Data=========================================================
 #load packages
 library(pacman) 

@@ -1,3 +1,11 @@
+#03_cross-validation_modelling_tuning
+
+#This script 1) creates folds for cross-validation, 2) models training using three different model
+  #types (i.e., decision tree, random forest, KNN), 3) tunes hyperparameters for all three model
+  #types, 4) selects model, 5) finalizes model, and 6) runs diagnostics on final
+  #model
+
+
 # Load Packages and Data============================================================================
 #load packages
 library(pacman) 

@@ -1,3 +1,9 @@
+#01_data-clean-check-impute.R
+
+#This script 1) performs initial data cleaning, 2) accomplishes initial data checking, 3) assesses
+  #missingness and imputes values, and 4) writes new dataframe to file
+
+
 # Load Packages, Objects, Functions, and Data=======================================================
 #packages
 library(pacman) 
@@ -298,8 +304,8 @@ cor(log(df_house_i$lot_frontage), df_house_i$sale_price)^2 #r2 = .105
 
 # Write Imputed Data to File========================================================================
 #output fp
-out_fp <- here("data", "tidy_data", "train_imputed.rds")
+out_train_fp <- here("data", "tidy_data", "train_imputed.rds")
 
-# saveRDS(df_house_i, out_fp)
+# saveRDS(df_house_i, out_train_fp)
 
 

@@ -1,3 +1,10 @@
+#02_feature-selection_engineering.R
+
+#This script 1) drops low 'variance' (frequency) features, 2) removes highly correlated features, 
+  #3) encodes (bins) rare factor labels, 4) normalizes numeric features, and 5) writes new
+  #dataframe to file
+
+
 # Load Packages, Source Functions & Read in Imputed Data============================================
 #load packages
 library(pacman) 
