@@ -10,8 +10,6 @@ source(here("code", "00_objects.R"))
 source(here("code", "00_helper_fns.R"))
 
 #data
-# col_type_vals <- "cccnncccccccccccccciicccccncccccccncnnnccccnnnniiiiiiciciccicincccnnnnnncccniiccn"
-
 df_test0 <- read_csv(here("data", "raw_data", "test.csv"),
                      col_types=col_types_test)
 
@@ -71,7 +69,7 @@ map_int(df_test, function(x) sum(is.na(x))) %>%
 ## Data imputation using mice method "cart"--------------------
 ### Imputation using CART
 df_test %>%
-  mice(method="rf", m=2, maxit=2) %>%
+  mice(method="cart", m=2, maxit=2) %>%
   complete() %>%
   as_tibble() -> df_test_i
 
@@ -80,17 +78,57 @@ skim(df_test_i)
 
 
 ### Compare pre- and post-imputation
+#### Visually
 vis_compare(df_test, df_test_i)
 
 vis_compare(df_test %>%
               select(starts_with("garage")), 
             df_test_i %>%
               select(starts_with("garage")))
+#major diff occurs with garage_cars (and likely co-occurring missingness with multiple garage 
+  #predictors)
 
 
+#### Determine how these predictors differ
+df_test %>%
+  select(id, garage_cars) %>%
+  left_join(
+    df_test_i %>%
+      select(id, garage_cars),
+    by="id"
+  ) %>%
+  mutate(diff=garage_cars.x-garage_cars.y) %>%
+  distinct(diff) #0 or NA; no diff in values (except missingness)
 
-# Feature Selection: Drop Low 'Variance' (frequency) & Highly Correlated Features===================
+class(df_test$garage_cars)
+class(df_test_i$garage_cars)
+#difference in class
+
+
+#### Check classes of all predictors
+class_test <- map_chr(df_test, function(x) {
+  class(x)[[1]]
+  }) %>%
+  enframe(name="var", value="class")
+
+
+class_test_i <- map_chr(df_test_i, function(x) {
+  class(x)[[1]]
+  }) %>%
+  enframe(name="var", value="class")
+
+class_test %>%
+  left_join(class_test_i, by="var") %>%
+  mutate(diff=class.x!=class.y) %>% 
+  filter(diff)
+#garage_cars is only one with an issue
+#NOTE: not an issue with training data
+
+
+# Feature Selection: Change garage_cars class, drop Low 'Variance' & Highly Correlated Features=====
 df_test_i %>%
+  #change class of garage_cars
+  mutate(garage_cars=as.integer(garage_cars)) %>%
   #drop low-variance features
   select(-c(street, utilities, condition2, pool_qc, roof_matl)) %>%
   #drop highly correlated features
@@ -99,13 +137,19 @@ df_test_i %>%
 
 
 # Feature Engineering: Rare-label Encoding & Feature Scaling=========================================
-
-
 df_test_icr %>%
-  bin_rare_levels() -> df_test_icrc
+  bin_rare_levels() %>%
+  norm_num_preds(vec_preds=num_preds) -> df_test_icrcn
+#warnings (from binning) generated b/c of missing initial levels but these are all parts of bins 
+  #in tidy data
 
-tabyl(df_test_icrc, house_style) 
 
+
+# Write Clean Test Data to File=====================================================================
+#output_fp
+out_test_fp <- here("data", "tidy_data", "test_tidy.rds")
+
+# saveRDS(df_test_icrcn, out_test_fp)
 
 
 
