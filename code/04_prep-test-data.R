@@ -2,7 +2,7 @@
 
 #This script follows the prep work of the training data by 1) performing initial data checking and
   #cleaning, 2) assessing missingness and implementing same imputation method as training data, 
-  #3) employing feature selection and engineering that mirrors training data handling, and 
+  #3) employing feature selection and engineering that mirrors training data handling,  and
   #4) writes tidied test dataframe to file
 
 
@@ -158,20 +158,6 @@ df_test_icr %>%
 out_test_fp <- here("data", "tidy_data", "test_tidy.rds")
 
 # saveRDS(df_test_icrcn, out_test_fp)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

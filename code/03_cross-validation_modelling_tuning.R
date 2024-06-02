@@ -2,8 +2,8 @@
 
 #This script 1) creates folds for cross-validation, 2) models training using three different model
   #types (i.e., decision tree, random forest, KNN), 3) tunes hyperparameters for all three model
-  #types, 4) selects model, 5) finalizes model, and 6) runs diagnostics on final
-  #model
+  #types, 4) selects model, 5) finalizes model,  6) runs diagnostics on final
+  #model, and 7) saves final model
 
 
 # Load Packages and Data============================================================================
@@ -202,14 +202,14 @@ mod_tune_knn <- nearest_neighbor(
   translate()
 
 
-## Create tuning grid
+### Create tuning grid
 grid_knn <- grid_regular(neighbors(),
                          weight_func(),
                          levels=5)
 grid_knn
 
 
-## Construct workflow
+### Construct workflow
 wf_tune_knn <- workflow() %>%
   add_model(mod_tune_knn) %>%
   add_formula(as.formula(paste("sale_price ~", paste(all_preds, collapse=" + "))))
@@ -279,6 +279,18 @@ final_fit
 
 vi(final_fit) 
 vip(final_fit, num_features=20)
+
+
+
+# Write Model to File===============================================================================
+model_fp <- here("models", "final_model.rds")
+
+# saveRDS(final_fit, model_fp)
+
+
+
+
+
 
 
 
