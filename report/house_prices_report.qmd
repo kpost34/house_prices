@@ -1,0 +1,316 @@
+---
+title: "Machine Learning with Ames, IA, Housing Prices"
+author: "Keith Post"
+format: html
+editor: visual
+engine: knitr
+---
+
+## Background
+
+\[Need to add about Kaggle Ames, IA, housing data, how data are split into training and test sets with the latter not having target variable, etc.\]
+
+## I. Initial Data Cleaning
+
+The variables from the raw training data were categorized as character, double, or integer when read into R. The following cleaning steps were taken prior to a deeper exploration of the data:\
+\* column names were converted from snake to camel case\
+\* *garage_yr_blt* was populated with -1000 if the value was not applicable and NA if missing\
+\* not applicable values were populated with a variable-specific character (e.g., "NG" for "no garage", "NB" for "no basement") for multiple variables (e.g., *garage_type*, *garage_finish*, *bsmt_cond*, *bsmt_qual*)\
+\* all character variables aside from *id* were converted to (unordered and ordered factors; Table 1)
+
+\[create table of factors: one col variable and second column factor type\]
+
+## II. Preliminary Data Checking
+
+Data were checked by looking at the dimensions (\[inline R code\]) and summary information (Table 2a-c).
+
+\[insert tabular results from skim_by_type() for chr, fct, and num
+
+## III. Missingness
+
+### A. Assess missingness
+
+Missingness of training data were first visualized.
+
+```{r}
+vis_miss(df_house, 
+         sort_miss=TRUE, 
+         cluster=TRUE) 
+```
+
+This shows that only 0.2% of data are missing, and that most of the missingness occurs in one variable.
+
+Let's look more closely at variables with missing data.
+
+```{r}
+df_house %>%
+  select(where(~any(is.na(.)))) %>%
+  vis_miss(sort_miss=TRUE,
+           cluster=TRUE) 
+```
+
+Now only focusing on columns with only one missing value, *lot_frontage* has 18% missingness, *mas_vnr_type* and *mas_vnr_area* each have 1% missingness, and the remainder have less than 0.1% missingness.
+
+How about missingness by rows.
+
+```{r}
+df_house %>%
+  gg_miss_case() 
+```
+
+This shows that by far most observations lack a missing value and for those that have at least one NA, it's overwhelmingly only one missing value.
+
+It's also important to note how missing values co-occur in the training data.
+
+```{r}
+df_house %>%
+  gg_miss_upset(nsets=6)
+```
+
+This shows that *mas_vnr_type* and *mas_vnr_area* have identical patterns of missingness.
+
+Let's determine the specifics on number and percent missingness by predictor to better determine patterns of missingness.
+
+```{r}
+map_int(df_house, function(x) sum(is.na(x))) %>%
+  enframe(name="predictor", value="n_na") %>%
+  filter(n_na > 0) %>%
+  mutate(pct_na=(n_na/1460) * 100) %>%
+  arrange(desc(n_na)) 
+```
+
+Here we see that there are only six predictors with missing values and as mentioned before *lot_frontage* has the greatest proportion of missing values with nearly 18% values absent.
+
+Let's evaluate the three predictors with the most missingness to determine whether missingness should be considered 'missing at random' (MAR) or 'missing completely at random' (MCAR).
+
+```{r}
+df_house %>%
+  mutate(na_lot_frontage=is.na(lot_frontage)) %>%
+  ggplot() +
+  geom_histogram(aes(x=sale_price)) +
+  facet_wrap(~na_lot_frontage)
+```
+
+```{r}
+df_house %>%
+  mutate(na_lot_frontage=is.na(lot_frontage)) %>%
+  ggplot() +
+  geom_bar(aes(x=lot_shape)) +
+  facet_wrap(~na_lot_frontage)
+```
+
+```{r}
+df_house %>%
+  mutate(na_mas_vnr_type=is.na(mas_vnr_type)) %>%
+  ggplot() +
+  geom_bar(aes(x=foundation)) +
+  facet_wrap(~na_mas_vnr_type)
+```
+
+A: non-NA *lot_frontage* data is skewed more and peaks at a smaller *sale_price* than the NA *lot_frontage* data.
+
+B: When comparing *lot_frontage* to a closely related predictor, *lot_shape*, the distribution of the latter differs depending on the presence/absence of *lot_frontage* data
+
+C: As indicated in Figure x, *mas_vnr_type* and *mas_vnr_area* have the same pattern of missingness, so only one needs to be assessed. Here, the pattern of *foundation* types (likely a related a variable related to \_\_\_\_\_) was visualized when *mas_vnr_type* was present or absent, and it showed different distributions.
+
+Given all of these results, the data do not appear to have MCAR missingness and thus should be considered MAR (note: MNAR would require deeper investigation and gathering more data, which is beyond the scope of this project).
+
+### B. Impute values
+
+Multiple imputation is a reasonable approach for MAR data. This was accomplished using the classification and regression tree ('cart') approach from the mice function in {mice}.
+
+The pre- and post-imputation dataframes were visualized.
+
+```{r}
+vis_compare(df_house, df_house_i) 
+```
+
+Unsurprisingly, the most frequent changes (i.e., NA to non-NA values) occurred within *lot_frontage*.
+
+A closer look at *lot_frontage* shows the relationship between this predictor and *sale_price* with and without imputed values.
+
+```{r}
+df_house_i %>%
+  select(id, lot_frontage_imp="lot_frontage", sale_price) %>%
+  left_join(df_house %>%
+              select(id, lot_frontage), 
+            by="id") %>%
+  pivot_longer(cols=starts_with("lot_frontage"), 
+               names_to="lf_type", 
+               values_to="lot_frontage_value") %>%
+  mutate(lf_val_log=log(lot_frontage_value)) %>%
+  ggplot(aes(x=lf_val_log, y=sale_price, color=lf_type)) +
+  geom_point(alpha=0.2) +
+  geom_smooth(method="lm", color="blue") +
+  scale_color_viridis_d(end=0.5) +
+  facet_wrap(~lf_type, nrow=2) +
+  labs(x="Lot frontage (log) (ft)",
+       y="Sale price ($)") +
+  theme_bw() +
+  theme(legend.position="none")
+```
+
+Figure x indicates similar relationships between *lot_frontage* and *sale_price* without or with imputed *lot_frontage* values.
+
+## IV. Feature Selection
+
+After a successful imputation of data, feature selection was conducted. Here factor variables that display constancy or low 'variance' and highly correlated numerical variables were dropped.
+
+### A. Drop Low 'Variance' (Frequency) Features
+
+Low 'variance' factor variables means that one category composes at least 98% of the values. This means that less than 2% of the remaining values are associated with one or more other categories. There's a couple reasons to drop these predictors:
+
+1.  In v-fold cross-validation, there needs to be at least one value of each factor level in each fold. If rare factor levels are very rare, then this may not occur or the number of folds may need to be capped at a low number to accommodate this.
+2.  Even if item 1 is accomplished, a small number of a given factor level in one or more folds may lead to over-fitting due to small sample size
+
+\[develop and show table with predictors and frequencies\]
+
+Thus, *street*, *utilities*, *condition2*, *roof_matl*, and *pool_qc* were removed from the training data due to constancy of values.
+
+### B. Remove Highly Correlated Features
+
+Numerical predictors (i.e., integer, double-precision) were assessed for multicollinearity by calculating Pearson correlations for each pair of predictors. This can be visualized with a heat map.
+
+\[insert heat map\]
+
+Figure x shows that no pair of numerical predictors had a very strong correlation (*r* \[insert \>=\] 0.9). Note that the result was unaffected if Spearman rank correlations were used.
+
+Multicollinearity was assessed for pairs of ordered factors by computing Spearman rank correlations and using the same threshhold for exclusion (i.e., *r* \[insert \>=\] 0.9).
+
+\[insert heat map\]
+
+Figure x indicates that *overall_qual* and *overall_cond* are perfectly correlated, so *overall_cond* was removed.
+
+Multicollinearity among pairs of unordered factors was also investigated. Chi-square tests of independence were performed on each pair of unordered factors. Here's a summary of results.
+
+\[insert table of chi-square test results\]
+
+Table X shows that all pairwise comparisons are significant at alpha = 0.05. Thus, the most significant should be assessed further to determine which, if any, factors should be dropped.
+
+After assessing the 10 chi-square test results with the smallest *p* values, the following comparisons seem to be the most indicative of collinearity among pairs of unordered factors.
+
+\[insert plot_grid plot of what I have in R code\]
+
+Figure Xa and b indicate strong patterns of interdependence among *ms_sub_class* and *bldg_type* as well as *exterior1st* and *exterior2nd*. A review of the 20 comparisons with the smallest *p*-values (Table X) indicates that for these two pairs, *ms_sub_class* and *exterior2nd* are correlated more often with other factors than *bldg_type* and *exterior1st*, respectively. Thus, those two predictors have been dropped.
+
+## V. Feature Engineering
+
+### A. Rare-label Encoding
+
+Although factors (both unordered and ordered) that exhibited constancy were dropped, many of the remaining ones still contained rare levels. In those cases, the rare levels should be combined together or with more common levels such that no level should be considered rare (i.e., composes \< 2% of observations). This feature engineering approach was performed for all applicable factors by 1) considering each level's relationship with *sale_price*, 2) combining levels by similarity of type, 3) using domain knowledge, and/or 4) simply combining rare levels into some type of 'Other' category.
+
+#### Unordered Factors
+
+Here is a summary of how unordered factors were combined.
+
+\[insert table\]
+
+#### Ordered Factors
+
+Below is a summary of how ordered factors were combined.
+
+\[insert table\]
+
+### B. Feature Scaling
+
+Feature scaling is performed on numerical predictors to normalize their ranges such that these predictors do not have a differential impact on the model simply as an artifact of differences in scales (ranges).
+
+Normality of predictors is important to understand before deciding which scaling technique to employ. This was assessed visually using q-q plots and statistically with Shapiro tests.
+
+\[insert q-q plots\]
+
+\[insert table of shapiro test results\]
+
+Many of the q-q plots (e.g., \[insert predictor names\]) raise concerns about normal distributions (Figures Xa, b, and c), which is corroborated by Shapiro test results (Table X).
+
+Thus, given the lack of normal distributions as well as the differences in ranges (e.g., \_\_\_\_\_), normalization is an appropriate feature scaling technique, which was applied to the training data.
+
+## VI. Cross-Validation and Modelling
+
+Following initial data cleaning, imputation, feature scaling, and feature engineering, the training data underwent cross-validation.
+
+### A. Create folds
+
+The training data were split into 10 folds prior to model fitting.
+
+### B. Model training data
+
+Three different model types were used in modelling the house price data: decision tree, random forest, and K-nearest neighbor. These model types were selected because \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_.
+
+The models were fit to the training data and their metrics were evaluated (Table x).
+
+\[insert table\]
+
+The root-mean squared error (RMSE) and r^2^ indicate that the random forest model performed the best during cross-validation and thus was selected for hyperparameter tuning.
+
+### C. Hyperparameter tuning
+
+Given computational limitations, only two of three parameters were tuned--*trees* and *min_n*--using five levels each in a regular grid (Table x).
+
+\[insert table\]
+
+### D. Model selection
+
+The results from model tuning are present in Figure X and Table X.
+
+\[insert Figure\]
+
+\[insert Table\]
+
+These results indicate that the random forest model with *trees* = 2000 and *min_n* = 2 performed the best in cross-validation.
+
+### E. Model diagnostics
+
+Variable importance was assessed for the selected model (Table X, Figure X).
+
+\[insert Table X\]
+
+\[insert Figure X\]
+
+These results indicate that \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_.
+
+## VII. Prepare Test Data
+
+The test data were prepared in the same manner and using the same methods as the training data (except for creating cross-validation folds).
+
+### A. Initial data cleaning 
+
+The same data cleaning steps (i.e., converting variable names from camel case to snake case, *garage_yr_blt* was populated with -1000 if the value was not applicable and NA if missing, all character variables aside from *id* were converted to factors, and not applicable values of factors were converted to variable-specific classes (e.g., "NG" for "no garage").
+
+### B. Missingness: assessment and imputation
+
+Missingness was assessed visually (Figure x; Table x).
+
+\[insert figure\]
+
+\[insert table\]
+
+Results (Table x) show that like the training data, *lot_frontage* had the most missing values (15.5%), followed by *mas_vnr_type* and *mas_vnr_area* (at roughly 1% each) and finally 16 other variables with less than 0.3% missing values.
+
+Missing values were imputed with using the \_\_\_\_\_\_\_ method. Note that two *utilities* values remained missing (Table x), but this variable would subsequently be dropped due to low variance.
+
+\[insert table\]
+
+### C. Feature selection: drop low 'variance' and highly correlated features
+
+Like the training data, low-variance (i..e, *street*, *utilities*, *condition2*, *pool_qc*, *roof_matl*) and highly correlated (i.e., *overall_cond*, *ms_sub_class*, *exterior2nd*) features were removed from the test data set.
+
+### D. Feature engineering: rare-label encoding and feature scaling
+
+Rare feature classes from the test data set were binned in the same manner as the training data (Table x) and numerical features were normalized.
+
+Now that the test data has been prepared in the same manner as the training data, model evaluate can begin.
+
+## VIII. Evaluate Model
+
+### A. Predict sale prices
+
+Using the finalized random forest model with *trees* = 2000 and *min_n* = 2, the model was evaluated on the test data. The *sales_price* values were predicted for each row of the test data (Table x).
+
+\[insert table\]
+
+### B. Quantify performance on test data
+
+The predicted *sales_price* values associated with each *id* were submitted to Kaggle for scoring. This model scored 0.16399, which is a measure of the RMSE on logged predicted and observed sales prices.
+
+## 
