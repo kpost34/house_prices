@@ -6,25 +6,69 @@ editor: visual
 engine: knitr
 ---
 
+```{r setup}
+
+#load packages
+library(pacman)
+p_load(DT)
+
+#
+
+```
+
 ## Background
 
 \[Need to add about Kaggle Ames, IA, housing data, how data are split into training and test sets with the latter not having target variable, etc.\]
 
 ## I. Initial Data Cleaning
 
-The variables from the raw training data were categorized as character, double, or integer when read into R. The following cleaning steps were taken prior to a deeper exploration of the data:\
+The variables from the raw training data were categorized as character, double, or integer types when read into R. The following cleaning steps were taken prior to a deeper exploration of the data:\
 \* column names were converted from snake to camel case\
 \* *garage_yr_blt* was populated with -1000 if the value was not applicable and NA if missing\
 \* not applicable values were populated with a variable-specific character (e.g., "NG" for "no garage", "NB" for "no basement") for multiple variables (e.g., *garage_type*, *garage_finish*, *bsmt_cond*, *bsmt_qual*)\
-\* all character variables aside from *id* were converted to (unordered and ordered factors; Table 1)
+\* all character variables aside from *id* were converted to (unordered and ordered) factors; Table 1)
 
-\[create table of factors: one col variable and second column factor type\]
+```{r tab1-variable classes}
+
+DT::datatable(tab_var_class)
+
+```
 
 ## II. Preliminary Data Checking
 
 Data were checked by looking at the dimensions (\[inline R code\]) and summary information (Table 2a-c).
 
-\[insert tabular results from skim_by_type() for chr, fct, and num
+`{::: {.panel-tabset}`
+
+### Character types
+
+```{r tab2a-chr summary}
+
+DT::datatable(tab_train_chr)
+
+```
+
+Unsurprisingly, *id* is the only variable and has no missing values and all values are unique.
+
+### Factor types
+
+```{r tab2b-fct summary}
+
+DT::datatable(tab_train_fct)
+
+```
+
+There are 46 factors--23 unordered and 23 ordered--and only four have missing values. Numbers of factor levels (classes/categories) range from 2-25.
+
+### Numeric types
+
+```{r tab2c-num summary}
+
+DT::datatable(tab_train_num)
+
+```
+
+There are 34 numeric variables, including the target variable. Only two variables contain missing values. Many of the variables (e.g., *bsmt_fn_sf1*, *bsmt_half_bath*) contain high frequencies of 0s as indicated by the quartiles.
 
 ## III. Missingness
 
@@ -32,166 +76,165 @@ Data were checked by looking at the dimensions (\[inline R code\]) and summary i
 
 Missingness of training data were first visualized.
 
-```{r}
-vis_miss(df_house, 
-         sort_miss=TRUE, 
-         cluster=TRUE) 
+```{r fig1-overall missing}
+
+fig_train_overall_miss
 ```
 
-This shows that only 0.2% of data are missing, and that most of the missingness occurs in one variable.
+Figure 1 shows that only 0.2% of data are missing, and that most of the missingness occurs in one variable.
 
 Let's look more closely at variables with missing data.
 
-```{r}
-df_house %>%
-  select(where(~any(is.na(.)))) %>%
-  vis_miss(sort_miss=TRUE,
-           cluster=TRUE) 
+```{r fig2-subset missing}
+
+fig_train_sub_miss
 ```
 
-Now only focusing on columns with only one missing value, *lot_frontage* has 18% missingness, *mas_vnr_type* and *mas_vnr_area* each have 1% missingness, and the remainder have less than 0.1% missingness.
+Focusing on columns with missingness (Figure 2), *lot_frontage* has 18% missing values, *mas_vnr_type* and *mas_vnr_area* each have 1% missing values, and the remainder have less than 0.1% missing values.
 
-How about missingness by rows.
+Let's examine missingness by rows.
 
-```{r}
-df_house %>%
-  gg_miss_case() 
+```{r fig3-missing by row}
+
+fig_train_miss_row 
 ```
 
-This shows that by far most observations lack a missing value and for those that have at least one NA, it's overwhelmingly only one missing value.
+Figure 3 shows that by far most observations lack a missing value and for those that have at least one NA, it's overwhelmingly just one.
 
 It's also important to note how missing values co-occur in the training data.
 
-```{r}
-df_house %>%
-  gg_miss_upset(nsets=6)
+```{r fig4-missing pattern}
+
+fig_train_miss_patt 
 ```
 
-This shows that *mas_vnr_type* and *mas_vnr_area* have identical patterns of missingness.
+Figure 4 indicates that *mas_vnr_type* and *mas_vnr_area* have identical patterns of missingness.
 
 Let's determine the specifics on number and percent missingness by predictor to better determine patterns of missingness.
 
-```{r}
-map_int(df_house, function(x) sum(is.na(x))) %>%
-  enframe(name="predictor", value="n_na") %>%
-  filter(n_na > 0) %>%
-  mutate(pct_na=(n_na/1460) * 100) %>%
-  arrange(desc(n_na)) 
+```{r tab3-missingness by var}
+
+DT::datatable(tab_train_miss)
 ```
 
-Here we see that there are only six predictors with missing values and as mentioned before *lot_frontage* has the greatest proportion of missing values with nearly 18% values absent.
+There are only six predictors with missing values and as mentioned before *lot_frontage* has the greatest proportion of missing values with nearly 18% values absent (Table 3).
 
 Let's evaluate the three predictors with the most missingness to determine whether missingness should be considered 'missing at random' (MAR) or 'missing completely at random' (MCAR).
 
-```{r}
-df_house %>%
-  mutate(na_lot_frontage=is.na(lot_frontage)) %>%
-  ggplot() +
-  geom_histogram(aes(x=sale_price)) +
-  facet_wrap(~na_lot_frontage)
+`::: {.panel-tabset}`
+
+#### *sale_price* by *lot_frontage* missing status
+
+```{r fig5a-sale_price distribution by lot_frontage missing}
+
+fig_lot_frontage_miss_sp
 ```
 
-```{r}
-df_house %>%
-  mutate(na_lot_frontage=is.na(lot_frontage)) %>%
-  ggplot() +
-  geom_bar(aes(x=lot_shape)) +
-  facet_wrap(~na_lot_frontage)
+Although these distributions are similar, the plot where *lot_frontage* is missing is shifted slightly left (Figure 5a).
+
+#### *lot_shape* by *lot_frontage* missing status
+
+```{r fig5b-lot_shape distribution by lot_frontage missing}
+
+fig_ls_dist_lt_miss
+
 ```
 
-```{r}
-df_house %>%
-  mutate(na_mas_vnr_type=is.na(mas_vnr_type)) %>%
-  ggplot() +
-  geom_bar(aes(x=foundation)) +
-  facet_wrap(~na_mas_vnr_type)
+The frequency distributions of *lot_shape* by presence/absence of *lot_frontage* clearly differ (Figure 5b).
+
+#### *foundation* by *mas_vnr_type* missing status
+
+```{r fig5c-foundation by mas_vnr_type}
+
+fig_foundation_dist_mvt
+
 ```
 
-A: non-NA *lot_frontage* data is skewed more and peaks at a smaller *sale_price* than the NA *lot_frontage* data.
-
-B: When comparing *lot_frontage* to a closely related predictor, *lot_shape*, the distribution of the latter differs depending on the presence/absence of *lot_frontage* data
-
-C: As indicated in Figure x, *mas_vnr_type* and *mas_vnr_area* have the same pattern of missingness, so only one needs to be assessed. Here, the pattern of *foundation* types (likely a related a variable related to \_\_\_\_\_) was visualized when *mas_vnr_type* was present or absent, and it showed different distributions.
-
-Given all of these results, the data do not appear to have MCAR missingness and thus should be considered MAR (note: MNAR would require deeper investigation and gathering more data, which is beyond the scope of this project).
+As indicated in Figure 4, *mas_vnr_type* and *mas_vnr_area* have the same pattern of missingness, so only one needs to be assessed. Here, the pattern of *foundation* (a related variable) frequencies differed when *mas_vnr_type* was present or absent.
 
 ### B. Impute values
 
-Multiple imputation is a reasonable approach for MAR data. This was accomplished using the classification and regression tree ('cart') approach from the mice function in {mice}.
+Given all of these results, the data do not appear to have MCAR missingness and thus should be considered MAR (note: MNAR would require deeper investigation and gathering more data, which is beyond the scope of this project). Multiple imputation is a reasonable approach for MAR data. The classification and regression tree ('cart') approach was used to impute missing values.
 
-The pre- and post-imputation dataframes were visualized.
+The pre- and post-imputation dataframes were visualized (Figure 6).
 
-```{r}
-vis_compare(df_house, df_house_i) 
+```{r fig6-pre-post imputation training}
+
+fig_train_pre_post_impute
 ```
 
-Unsurprisingly, the most frequent changes (i.e., NA to non-NA values) occurred within *lot_frontage*.
+Unsurprisingly, the most frequent changes (i.e., NA to non-NA values) occurred within *lot_frontage* (Figure 6).
 
-A closer look at *lot_frontage* shows the relationship between this predictor and *sale_price* with and without imputed values.
+A closer look at *lot_frontage* shows the relationship between this predictor and *sale_price* with and without imputed values (Figure 7).
 
-```{r}
-df_house_i %>%
-  select(id, lot_frontage_imp="lot_frontage", sale_price) %>%
-  left_join(df_house %>%
-              select(id, lot_frontage), 
-            by="id") %>%
-  pivot_longer(cols=starts_with("lot_frontage"), 
-               names_to="lf_type", 
-               values_to="lot_frontage_value") %>%
-  mutate(lf_val_log=log(lot_frontage_value)) %>%
-  ggplot(aes(x=lf_val_log, y=sale_price, color=lf_type)) +
-  geom_point(alpha=0.2) +
-  geom_smooth(method="lm", color="blue") +
-  scale_color_viridis_d(end=0.5) +
-  facet_wrap(~lf_type, nrow=2) +
-  labs(x="Lot frontage (log) (ft)",
-       y="Sale price ($)") +
-  theme_bw() +
-  theme(legend.position="none")
+```{r fig7-lot_frontage before after imputation}
+
+fig_train_lf_pre_post_impute
 ```
 
-Figure x indicates similar relationships between *lot_frontage* and *sale_price* without or with imputed *lot_frontage* values.
+Figure 7 indicates similar relationships between *lot_frontage* and *sale_price* without or with imputed *lot_frontage* values.
 
 ## IV. Feature Selection
 
-After a successful imputation of data, feature selection was conducted. Here factor variables that display constancy or low 'variance' and highly correlated numerical variables were dropped.
+After a successful imputation of missing values, feature selection was conducted. Here factor variables that display constancy or low 'variance' and highly correlated variables were dropped.
 
 ### A. Drop Low 'Variance' (Frequency) Features
 
-Low 'variance' factor variables means that one category composes at least 98% of the values. This means that less than 2% of the remaining values are associated with one or more other categories. There's a couple reasons to drop these predictors:
+Low 'variance' factor variables means that one category composes at least 98% of the values. Thus, less than 2% of the remaining values for that factor are associated with one or more other categories. There's a couple reasons to drop these predictors:
 
-1.  In v-fold cross-validation, there needs to be at least one value of each factor level in each fold. If rare factor levels are very rare, then this may not occur or the number of folds may need to be capped at a low number to accommodate this.
+1.  In v-fold cross-validation, there needs to be at least one value of each factor level in each fold. If infrequent factor levels are very rare, then this may not occur or the number of folds may need to be capped at a low number to accommodate this.
 2.  Even if item 1 is accomplished, a small number of a given factor level in one or more folds may lead to over-fitting due to small sample size
 
-\[develop and show table with predictors and frequencies\]
+Five factors exhibited constancy: *condition2*, *pool_qc*, *roof_matl*, *street*, *utilities* (Table 4).
 
-Thus, *street*, *utilities*, *condition2*, *roof_matl*, and *pool_qc* were removed from the training data due to constancy of values.
+```{r tab4-factor contancy}
+
+DT::datatable(tab_train_fct_constancy)
+
+```
 
 ### B. Remove Highly Correlated Features
 
-Numerical predictors (i.e., integer, double-precision) were assessed for multicollinearity by calculating Pearson correlations for each pair of predictors. This can be visualized with a heat map.
+Numerical predictors (i.e., integer, double-precision) were assessed for multicollinearity by calculating Pearson correlations for each pair of predictors.
 
-\[insert heat map\]
+```{r tab5-multicollinearity numerical predictors}
 
-Figure x shows that no pair of numerical predictors had a very strong correlation (*r* \[insert \>=\] 0.9). Note that the result was unaffected if Spearman rank correlations were used.
+DT::datatable(tab_train_num_corr)
 
-Multicollinearity was assessed for pairs of ordered factors by computing Spearman rank correlations and using the same threshhold for exclusion (i.e., *r* \[insert \>=\] 0.9).
+```
 
-\[insert heat map\]
+Table 5 shows that no pair of numerical predictors had a very strong correlation (\|*rI*\| \< 0.9 for all pairs). Note that this result was unaffected if Spearman rank correlations were used.
 
-Figure x indicates that *overall_qual* and *overall_cond* are perfectly correlated, so *overall_cond* was removed.
+Multicollinearity was also assessed for pairs of ordered factors by computing Spearman rank correlations and using the same threshhold for exclusion.
 
-Multicollinearity among pairs of unordered factors was also investigated. Chi-square tests of independence were performed on each pair of unordered factors. Here's a summary of results.
+```{r tab6-multicollinearity ordered factor predictors}
 
-\[insert table of chi-square test results\]
+DT::datatable(tab_train_ord_corr)
 
-Table X shows that all pairwise comparisons are significant at alpha = 0.05. Thus, the most significant should be assessed further to determine which, if any, factors should be dropped.
+```
+
+Table 6 indicates that *overall_qual* and *overall_cond* are perfectly correlated, so *overall_cond* was removed. No other pairs of ordered factors had very strong correlations (\|*r*\| \> 0.9).
+
+Multicollinearity among pairs of unordered factors was also investigated using Chi-square tests of independence.
+
+```{r tab7-multicollinearity unordered factor predictors}
+
+DT::datatable(tab_fct_x2_p %>%
+                mutate(sig=p.value <= .05))
+
+```
+
+Table 7 shows that nearly all pairwise comparisons were significant at alpha = 0.05. Thus, the most significant pairs should be assessed further to determine which, if any, factors should be dropped.
 
 After assessing the 10 chi-square test results with the smallest *p* values, the following comparisons seem to be the most indicative of collinearity among pairs of unordered factors.
 
-\[insert plot_grid plot of what I have in R code\]
+```{r fig8-multicollinearity unordered factor pairs}
 
-Figure Xa and b indicate strong patterns of interdependence among *ms_sub_class* and *bldg_type* as well as *exterior1st* and *exterior2nd*. A review of the 20 comparisons with the smallest *p*-values (Table X) indicates that for these two pairs, *ms_sub_class* and *exterior2nd* are correlated more often with other factors than *bldg_type* and *exterior1st*, respectively. Thus, those two predictors have been dropped.
+fig_fct_x2
+
+```
+
+Figure 8 illustrates strong patterns of interdependence among *ms_sub_class* and *bldg_type* as well as *exterior1st* and *exterior2nd*. A review of the 10 comparisons with the smallest *p*-values (Table 7) indicates that for these two pairs, *ms_sub_class* and *exterior2nd* should be dropped. The former is part of the three most significant correlations, and the latter is, by definition, secondary to *exterior1st*.
 
 ## V. Feature Engineering
 
@@ -201,15 +244,31 @@ Although factors (both unordered and ordered) that exhibited constancy were drop
 
 #### Unordered Factors
 
-Here is a summary of how unordered factors were combined.
+One example of rare-label encoding involves *lot_config*.
 
-\[insert table\]
+```{r tab8-rare-label encoding lot_config}
+
+DT::datatable(list_rare_cat_viz[["lot_config"]]$freq_table)
+
+```
+
+```{r fig9-rare-label encoding lot_config}
+
+list_rare_cat_viz[["lot_config"]]$plots
+
+```
+
+Table 8 shows that category 'FR3' occurs less than 0.3% of the time, well below the 2% threshhold. Given that 'FR3' is so rare, its relationship with *sale_price* is less important (which is indicative of the large error bars in the top two plots; Figure 9); thus, it was binned with 'FR2' (as these are similar in shape and frequency) to make 'FR2_3.'
+
+Below is a summary of the
+
+**\[insert table\]**
 
 #### Ordered Factors
 
 Below is a summary of how ordered factors were combined.
 
-\[insert table\]
+**\[insert table\]**
 
 ### B. Feature Scaling
 
@@ -217,9 +276,9 @@ Feature scaling is performed on numerical predictors to normalize their ranges s
 
 Normality of predictors is important to understand before deciding which scaling technique to employ. This was assessed visually using q-q plots and statistically with Shapiro tests.
 
-\[insert q-q plots\]
+**\[insert q-q plots\]**
 
-\[insert table of shapiro test results\]
+**\[insert table of shapiro test results\]**
 
 Many of the q-q plots (e.g., \[insert predictor names\]) raise concerns about normal distributions (Figures Xa, b, and c), which is corroborated by Shapiro test results (Table X).
 
@@ -239,7 +298,7 @@ Three different model types were used in modelling the house price data: decisio
 
 The models were fit to the training data and their metrics were evaluated (Table x).
 
-\[insert table\]
+**\[insert table\]**
 
 The root-mean squared error (RMSE) and r^2^ indicate that the random forest model performed the best during cross-validation and thus was selected for hyperparameter tuning.
 
@@ -247,15 +306,15 @@ The root-mean squared error (RMSE) and r^2^ indicate that the random forest mode
 
 Given computational limitations, only two of three parameters were tuned--*trees* and *min_n*--using five levels each in a regular grid (Table x).
 
-\[insert table\]
+**\[insert table\]**
 
 ### D. Model selection
 
 The results from model tuning are present in Figure X and Table X.
 
-\[insert Figure\]
+**\[insert Figure\]**
 
-\[insert Table\]
+**\[insert Table\]**
 
 These results indicate that the random forest model with *trees* = 2000 and *min_n* = 2 performed the best in cross-validation.
 
@@ -263,9 +322,9 @@ These results indicate that the random forest model with *trees* = 2000 and *min
 
 Variable importance was assessed for the selected model (Table X, Figure X).
 
-\[insert Table X\]
+**\[insert Table X\]**
 
-\[insert Figure X\]
+**\[insert Figure X\]**
 
 These results indicate that \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_.
 
@@ -273,7 +332,7 @@ These results indicate that \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_.
 
 The test data were prepared in the same manner and using the same methods as the training data (except for creating cross-validation folds).
 
-### A. Initial data cleaning 
+### A. Initial data cleaning
 
 The same data cleaning steps (i.e., converting variable names from camel case to snake case, *garage_yr_blt* was populated with -1000 if the value was not applicable and NA if missing, all character variables aside from *id* were converted to factors, and not applicable values of factors were converted to variable-specific classes (e.g., "NG" for "no garage").
 
@@ -281,15 +340,15 @@ The same data cleaning steps (i.e., converting variable names from camel case to
 
 Missingness was assessed visually (Figure x; Table x).
 
-\[insert figure\]
+**\[insert figure\]**
 
-\[insert table\]
+**\[insert table\]**
 
 Results (Table x) show that like the training data, *lot_frontage* had the most missing values (15.5%), followed by *mas_vnr_type* and *mas_vnr_area* (at roughly 1% each) and finally 16 other variables with less than 0.3% missing values.
 
 Missing values were imputed with using the \_\_\_\_\_\_\_ method. Note that two *utilities* values remained missing (Table x), but this variable would subsequently be dropped due to low variance.
 
-\[insert table\]
+**\[insert table\]**
 
 ### C. Feature selection: drop low 'variance' and highly correlated features
 
@@ -307,7 +366,7 @@ Now that the test data has been prepared in the same manner as the training data
 
 Using the finalized random forest model with *trees* = 2000 and *min_n* = 2, the model was evaluated on the test data. The *sales_price* values were predicted for each row of the test data (Table x).
 
-\[insert table\]
+**\[insert table\]**
 
 ### B. Quantify performance on test data
 
