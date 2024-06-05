@@ -9,6 +9,7 @@ skim_by_type <- function(data, fn) {
   mutate(across(where(is.numeric), ~signif(.x,3)))
 }
 
+
 ## Function to clean col names, handle NA values, and to create ordered factors
 initial_clean_house <- function(data) {
   data %>%
@@ -72,6 +73,30 @@ replace_diag_na <- function(mat) {
   return(mat)
 }
 
+
+## Function to create bubble plots of pairs of unordered factors from list of x^2 results
+plot_counts <- function(plot_num, legend=FALSE) {
+  comp <- low_p_val_x2_feat[plot_num]
+  
+  low_p_val_vars <- comp %>%
+    str_split_1(pattern="__")
+  
+  var1 <- low_p_val_vars[1]
+  var2 <- low_p_val_vars[2]
+  
+  list_house_fct_chis[[comp]][["matrix"]] %>%
+    as.data.frame() %>%
+    rownames_to_column(var=var1) %>%
+    pivot_longer(cols=-(!!ensym(var1)), names_to=var2, values_to="n") %>%
+    uncount(n) %>%
+    ggplot() +
+    geom_count(aes(x=!!ensym(var1), 
+                   y=!!ensym(var2))) +
+    scale_size_area() + 
+    theme(axis.title.x=element_text(angle=90)) +
+    {if(legend) theme(legend.position="top") 
+      else theme(legend.position="none")}
+}
 
 
 ## Function to show sale_price-factor bar plots and frequency plots and tables of factor
