@@ -25,23 +25,20 @@ df_test0 <- read_csv(here("data", "raw_data", "test.csv"),
 
 # Initial Data Checking and Cleaning================================================================
 ## Data checking
-dim(df_test0)
-summary(df_test0)
-skim(df_test0)
-
-
-## Data cleaning
-df_test <- initial_clean_house(df_test0)
-
-
-## Data checking
 #overall
+dim(df_test0)
+head(df_test, n=10)
 summary(df_test)
+skim(df_test0)
 
 #by type
 skim_by_type(data=df_test, fn=is.character)
 skim_by_type(data=df_test, fn=is.factor)
 skim_by_type(data=df_test, fn=is.numeric) 
+
+
+## Data cleaning
+df_test <- initial_clean_house(df_test0)
 
 
 
