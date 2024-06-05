@@ -39,6 +39,22 @@ feat_low_var <- df_house_i %>%
 feat_low_var #street, utilities, condition2, roof_matl, pool_qc
 
 
+## Create table for report
+tab_train_fct_constancy <- df_house_i %>%
+  select(all_of(feat_low_var)) %>% 
+  mutate(across(everything(), ~factor(.x, ordered=FALSE))) %>%
+  purrr::map(function(col) {
+    col %>%
+      tabyl() %>%
+      mutate(percent=round(percent*100, 3)) %>%
+      rename(level=".")
+  }) %>%
+  bind_rows(.id="factor") %>%
+  arrange(factor, desc(n))
+
+tab_train_fct_constancy
+
+
 ## Assess candidates
 #street
 df_house_i %>%
@@ -85,6 +101,7 @@ df_house_i %>%
 # Feature Selection: Remove Highly Correlated Features==============================================
 
 ## Numeric-numeric--------------------
+### Identify highly correlated numeric predictors using Pearson correlations
 df_house_ic %>%
   select(!sale_price) %>%
   select(where(is.numeric)) %>%
@@ -96,7 +113,30 @@ df_house_ic %>%
 #empty DF; no features dropped for high correlation
 
 
+### Create a long table for report
+tab_train_num_corr <- df_house_ic %>%
+  select(!sale_price) %>%
+  select(where(is.numeric)) %>%
+  cor() %>%
+  replace_diag_na() %>% 
+  as.data.frame() %>%
+  mutate(across(everything(), ~round(.x, 3))) %>%
+  rownames_to_column(var="predictor_x") %>%
+  pivot_longer(cols=!predictor_x, names_to="predictor_y", values_to="corr") %>%
+  mutate(predictors=paste(pmin(predictor_x, predictor_y),
+                          pmax(predictor_x, predictor_y),
+                          sep=", ")) %>% 
+  filter(!is.na(corr)) %>%
+  filter(duplicated(predictors)) %>%
+  select(-predictors) %>%
+  arrange(desc(corr)) %>%
+  rename(`Pearson correlation`="corr")
+
+tab_train_num_corr
+  
+
 ## Ordered factor-ordered factor--------------------
+### Identify highly correlated ordered factors using Spearman rank correlations
 df_house_ic %>%
   select(where(is.ordered)) %>%
   mutate(across(everything(), ~as.integer(.x))) %>%
@@ -110,7 +150,29 @@ df_house_ic %>%
   rownames_to_column("var") %>%
   filter(if_any(.cols=!var, ~. > 0.9))
   #overall_qual and overall_cond are 'perfectly' correlated, so drop one of them: overall_cond
-#NOTE: use a heat map for document/report
+
+
+### Create a long table for report
+tab_train_ord_corr <- df_house_ic %>%
+  select(where(is.ordered)) %>%
+  mutate(across(everything(), ~as.integer(.x))) %>%
+  cor(method="spearman") %>%
+  replace_diag_na() %>% 
+  as.data.frame() %>%
+  mutate(across(everything(), ~round(.x, 3))) %>%
+  rownames_to_column(var="predictor_x") %>%
+  pivot_longer(cols=!predictor_x, names_to="predictor_y", values_to="corr") %>%
+  mutate(predictors=paste(pmin(predictor_x, predictor_y),
+                          pmax(predictor_x, predictor_y),
+                          sep=", ")) %>% 
+  filter(!is.na(corr)) %>%
+  filter(duplicated(predictors)) %>%
+  select(-predictors) %>%
+  arrange(desc(corr)) %>%
+  rename(`Spearman rank correlation`="corr")
+
+tab_train_ord_corr
+
   
 
 ## Factor-factor--------------------
@@ -118,6 +180,7 @@ df_house_ic %>%
 df_house_ic %>%
   select(where(is.factor)) %>%
   select(!where(is.ordered)) -> df_house_ic_fct
+
 
 #### Run chi-square tests on all pairwise combinations
 #isolate all pairwise combinations
@@ -161,7 +224,9 @@ list_house_fct_chis %>%
   purrr::map(`[[`, 2) %>%
   purrr::map("p.value") %>%
   enframe(name="feature_pair", value="p.value") %>%
-  unnest(p.value) %>%
+  unnest(p.value) -> tab_fct_x2_p 
+
+tab_fct_x2_p %>%
   filter(p.value <= 0.05) %>%
   arrange(p.value) %>% 
   # filter(p.value==0) %>%
@@ -178,30 +243,12 @@ list_house_fct_chis[[1]]["matrix"] %>%
   geom_count(aes(x=ms_sub_class, y=ms_zoning)) +
   scale_size_area()
 
-
-plot_counts <- function(plot_num) {
-  comp <- low_p_val_x2_feat[plot_num]
-  
-  low_p_val_vars <- comp %>%
-    str_split_1(pattern="__")
-  
-  var1 <- low_p_val_vars[1]
-  var2 <- low_p_val_vars[2]
-  
-  list_house_fct_chis[[comp]][["matrix"]] %>%
-    as.data.frame() %>%
-    rownames_to_column(var=var1) %>%
-    pivot_longer(cols=-(!!ensym(var1)), names_to=var2, values_to="n") %>%
-    uncount(n) %>%
-    ggplot() +
-    geom_count(aes(x=!!ensym(var1), 
-                   y=!!ensym(var2))) +
-    scale_size_area()
-}
-
 #most 'suspicious' (after looking at 10 pairwise comps with lowest p-values)
-plot_counts(plot_num=2)
-plot_counts(plot_num=6)
+p1_x2 <- plot_counts(plot_num=2)
+p2_x2 <- plot_counts(plot_num=6, legend=TRUE)
+
+fig_fct_x2 <- plot_grid(p1_x2, p2_x2, nrow=2)
+fig_fct_x2
 
 low_p_val_x2_feat[1:6]
 
@@ -249,20 +296,20 @@ list_rare_cat_viz <- feat_rare_cat %>%
   })
 
 #ms_zoning: 
-list_rare_cat_viz["ms_zoning"] 
+list_rare_cat_viz[["ms_zoning"]] 
 explore_rare_cats(predictor=ms_zoning) 
 #combine RH, RM, and C (all) into 'other' 
 #these three have lowest sale prices so combine into other category
 #Other: RH, RM, C (all)
 
 #lot_config
-list_rare_cat_viz["lot_config"]
+list_rare_cat_viz[["lot_config"]]
 #FR3 is the only rare category but it makes sense to combine with FR2 given similarity of 
   #category and sale price (despite very low n)
 #FR2_3: FR2, FR3
 
 #neighborhood  
-list_rare_cat_viz["neighborhood"]
+list_rare_cat_viz[["neighborhood"]]
 #group the rare ones into three other categories by closeness in sale price (but not with more
   #common neighborhoods as these have greater sample size and I'm unusre how these are related)
 #Other1: StoneBr, Veenker
@@ -270,13 +317,13 @@ list_rare_cat_viz["neighborhood"]
 #Other3: SWISU, MeadowV, BrDale, NPkVill, Blueste
 
 #condition1 
-list_rare_cat_viz["condition1"]
+list_rare_cat_viz[["condition1"]]
 #many groups with small percentages so group RR categories together and add positive conds to Norm
 #RRnear: RRAn, RRAe, RRNn, RRNe
 #NormPos: Norm, PosN, PosA
 
 #house_style   
-list_rare_cat_viz["house_style"] 
+list_rare_cat_viz[["house_style"]] 
 #group 2.5Fin with 2Story b/c similar stories and finished status and mean sale_price
 #group the other two rare cats together with SFoyer into 'Other' b/c both have unfinished second story 
   #and a half story and SFoyer has frequency of 2.5% and with weak sale price
@@ -284,56 +331,56 @@ list_rare_cat_viz["house_style"]
 #Other: 1.5Unf, 2.5Unf, SFoyer
 
 #roof_style  
-list_rare_cat_viz["roof_style"] 
+list_rare_cat_viz[["roof_style"]] 
 #group the four rare categories as 'other' b/c don't see any other relationships
 #Other: Flat, Gambrel, Mansard, Shed
 
 #exterior1st    
-list_rare_cat_viz["exterior1st"] 
+list_rare_cat_viz[["exterior1st"]] 
 #group < 2% as other: 8 categories and 5 of them have only n = 1 or 2; the three on their own don't
   #group well together or with existing categories.
 #Other: WdShing, Stucco, AsbShng, BrkComm, Stone, AsphShn, CBlock, ImStucc
 
 #mas_vnr_type   
-list_rare_cat_viz["mas_vnr_type"] 
+list_rare_cat_viz[["mas_vnr_type"]] 
 #although BrkCmn is closer to None in sale_price, it has few numbers and is a 'present' category
   #and shares the same material as BrkFace, so these should be grouped together
 #BrkFace_Cmn: BrkFace, BrkCmn
 
 #foundation    
-list_rare_cat_viz["foundation"] 
+list_rare_cat_viz[["foundation"]] 
 #stone and wood seem much different than the others but are too small for their own group, so
   #group with Slab, the other rare category
 #Other: Slab, Stone, Wood
 
 #heating    
-list_rare_cat_viz["heating"] 
+list_rare_cat_viz[["heating"]] 
 #group non-GasA as 'Other' b/c GasA is so common and the others and thus much smaller with high
   #variability
 #Other: GasW, Grav, Wall, OthW, Floor
 
 #garage_type    
-list_rare_cat_viz["garage_type"] 
+list_rare_cat_viz[["garage_type"]] 
 #again, three categories with very low frequencies. A basement garage is most similar to a built-in
   #garage, but their sale price values differ wildly. The other two are different than the rest, 
   #so again let's group the rare categories as 'Other'
 #Other: Basment, CarPort, 2Types
 
 #misc_feature  
-list_rare_cat_viz["misc_feature"] 
+list_rare_cat_viz[["misc_feature"]] 
 #given the rarity of Gar2, Othr, and TenC and that NMF (the NA cat) makes up 96% of values to
   #simply combine the rest into MF
 #MF: Shed, Gar2, Othr, TenC
 
 #sale_type   
-list_rare_cat_viz["sale_type"] 
+list_rare_cat_viz[["sale_type"]] 
 #the problem here is that the contract categories could go together but combined the percentage is
   #too low. The Oth category is extremely rare and has no natural combination, so let's combine all
   #rare ones with COD into a larger Other category
 #Other: COD, ConLD, ConLI, ConLw, CWD, Oth, Con
 
 #sale_condition
-list_rare_cat_viz["sale_condition"] 
+list_rare_cat_viz[["sale_condition"]] 
 #no natural combinations so group using other
 #Other: Family, Alloca, AdjLand
 
@@ -365,36 +412,36 @@ list_rare_ord_viz <- feat_rare_ord %>%
   })
 
 #lot_shape
-list_rare_ord_viz["lot_shape"] 
+list_rare_ord_viz[["lot_shape"]] 
 explore_rare_cats(predictor=lot_shape) 
 #makes most sense to combine IR2 and IR3 b/c ordinal nature and they are close in avg sale price
 #IR2_3: IR2, IR3
 
 #land_slope
-list_rare_ord_viz["land_slope"] 
+list_rare_ord_viz[["land_slope"]] 
 #naturally makes most sense to combine moderate and severe slope
 #Mod_Sev: Mod, Sev
 
 #overall_qual
-list_rare_ord_viz["overall_qual"] 
+list_rare_ord_viz[["overall_qual"]] 
 #combine 1-4 since overall quality does align well with sale_price; also combine 9 & 10 b/c both rare
 #4_and_less: 1, 2, 3, 4
 #9_10: 9, 10
 
 #exter_qual
-list_rare_ord_viz["exter_qual"] 
+list_rare_ord_viz[["exter_qual"]] 
 #exterior quality aligns well with sale price so combine lowest three categories
 #TA_and_less: Po, Fa, TA
 
 #exter_cond
-list_rare_ord_viz["exter_cond"] 
+list_rare_ord_viz[["exter_cond"]] 
 #exterior condition aligns well with sale price so combine good and excellent into one category
   #and poor and fair into another
 #Ex_Gd: Ex, Gd
 #Fa_Po: Fa, Po
 
 #bsmt_cond
-list_rare_ord_viz["bsmt_cond"] 
+list_rare_ord_viz[["bsmt_cond"]] 
 #this predictor also aligns well with sale price with the caveat that no basement is associated
   #with a greater sale price, on average, than a basement of poor condition
 #since no basement is different than the rest and poor is so rare, let's combine poor with fair
@@ -403,50 +450,50 @@ list_rare_ord_viz["bsmt_cond"]
 #Ex_Gd: Ex, Gd
 
 #bsmt_fin_type2
-list_rare_ord_viz["bsmt_fin_type2"]  
+list_rare_ord_viz[["bsmt_fin_type2"]]  
 #ordinal categories don't align perfectly with sale price
 #still makes most sense to group close ranks together; thus, GLQ and ALQ should be grouped
 #ALQ_GLQ: ALQ, GLQ
 
 #heating_qc
-list_rare_ord_viz["heating_qc"]  
+list_rare_ord_viz[["heating_qc"]]  
 #ranks align well with sale price, so makes sense to group poor with fair
 #Fa_Po: Fa, Po
 
 #electrical
-list_rare_ord_viz["electrical"]  
+list_rare_ord_viz[["electrical"]]  
 #the rarest three categories are also the three least ranked and the three with the lowest sale
   #prices, so these should be grouped
 #FuseF_P_Mix: FuseF, FuseP, Mix
 
 #functional
-list_rare_ord_viz["functional"] 
+list_rare_ord_viz[["functional"]] 
 #don't align 'perfectly' with sale price but all cats but Typ are infrequent
 #group Mod and below into one category: "Poor"
 #Poor: Mod, Maj1, Maj2, Sev, Sal
 
 #fireplace_qu
-list_rare_ord_viz["fireplace_qu"] 
+list_rare_ord_viz[["fireplace_qu"]] 
 #aligns well with sale price except NFp is above Po; Ex and Po are rare so should be grouped
   #with Gd and Fa, respectively
 #Ex_Gd: Ex, Gd
 #Fa_Po: Fa, Po
 
 #garage_qual
-list_rare_ord_viz["garage_qual"] 
+list_rare_ord_viz[["garage_qual"]] 
 #aligns well with sale price except that NG is above Po; Gd, Ex, and Po are rare so group the
   #former two with TA and the latter with Fa
 #Ex_Gd_TA: Ex, Gd, TA
 #Fa_Po: Fa, Po
 
 #garage_cond
-list_rare_ord_viz["garage_cond"] 
+list_rare_ord_viz[["garage_cond"]] 
 #does not align well with sale price, but Gd, Po, and Ex are rare; again, cluster by rank
 #Ex_Gd_TA: Ex, Gd, TA
 #Fa_Po: Fa, Po
 
 #fence
-list_rare_ord_viz["fence"] 
+list_rare_ord_viz[["fence"]] 
 #combine two most infrequent categories which also are associated with lowest sale prices
 #Ww: GdWo, MnWw
 
