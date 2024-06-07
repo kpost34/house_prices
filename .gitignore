@@ -10,4 +10,5 @@
 *.txt
 .Ruserdata
 /data
-/models
+/modelling
+/report/house_prices_report_files

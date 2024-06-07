@@ -14,7 +14,7 @@ test_fp <- here("data", "tidy_data", "test_tidy.rds")
 df_test_final <- readRDS(test_fp)
 
 #model
-model_fp <- here("models", "final_model.rds")
+model_fp <- here("modelling", "final_model.rds")
 final_fit <- readRDS(model_fp)
 
 

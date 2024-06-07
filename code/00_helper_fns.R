@@ -93,7 +93,7 @@ plot_counts <- function(plot_num, legend=FALSE) {
     geom_count(aes(x=!!ensym(var1), 
                    y=!!ensym(var2))) +
     scale_size_area() + 
-    theme(axis.title.x=element_text(angle=90)) +
+    theme(axis.text.x=element_text(angle=90)) +
     {if(legend) theme(legend.position="top") 
       else theme(legend.position="none")}
 }
