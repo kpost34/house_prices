@@ -10,15 +10,40 @@ engine: knitr
 
 #load packages
 library(pacman)
-p_load(DT)
+p_load(here, DT)
 
-#
+#source objects from scripts
+source(here("code", "01_data-clean_check_impute.R"))
+source(here("code", "02_feature-selection_engineering.R"))
+source(here("code", "04_prep-test-data.R"))
+
+#source modelling objects from files
+model_cv_metrics_fp <- here("modelling", "mod_cv_metrics.rds")
+grid_rf_fp <- here("modelling", "grid_rf.rds")
+cv_metrics_tune_rf_fp <- here("modelling", "metrics_tune_rf.rds")
+metric_tune_rf_plot_fp <- here("modelling", "metric_tune_rf_plot.rds")
+final_model_fp <- here("modelling", "final_model.rds")
+vi_final_model_fp <- here("modelling", "vi_final_model.rds")
+vip_final_model_fp <- here("modelling", "vip_final_model.rds")
+overall_qual_sale_price_plot_fp <- here("modelling", "overall_qual_sale_price_plot.rds")
+
+tab_model_cv_metrics <- readRDS(model_cv_metrics_fp)
+grid_rf <- readRDS(grid_rf_fp)
+tab_cv_metrics_tune_rf <- readRDS(cv_metrics_tune_rf_fp)
+fig_metric_tune_rf <- readRDS(metric_tune_rf_plot_fp)
+final_fit <- readRDS(final_model_fp)
+tab_vi_rf_final_model <- readRDS(vi_final_model_fp)
+fig_vip_rf_final_model <- readRDS(vip_final_model_fp)
+fig_overall_qual_sale_price_box <- readRDS(overall_qual_sale_price_plot_fp)
 
 ```
 
 ## Background
 
-\[Need to add about Kaggle Ames, IA, housing data, how data are split into training and test sets with the latter not having target variable, etc.\]
+Given 79 explanatory variables describing houses in Ames, IA, the objective of this Kaggle competition is to develop a model to accurately predict home sale prices. A summary of the data can be found \[here\].\
+(<https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data>)
+
+The data are pre-split into training and test data sets. The former has a column with sale prices, while the latter does not.
 
 ## I. Initial Data Cleaning
 
@@ -38,7 +63,7 @@ DT::datatable(tab_var_class)
 
 Data were checked by looking at the dimensions (\[inline R code\]) and summary information (Table 2a-c).
 
-`{::: {.panel-tabset}`
+`::: {.panel-tabset}`
 
 ### Character types
 
@@ -69,6 +94,8 @@ DT::datatable(tab_train_num)
 ```
 
 There are 34 numeric variables, including the target variable. Only two variables contain missing values. Many of the variables (e.g., *bsmt_fn_sf1*, *bsmt_half_bath*) contain high frequencies of 0s as indicated by the quartiles.
+
+:::
 
 ## III. Missingness
 
@@ -151,6 +178,8 @@ fig_foundation_dist_mvt
 ```
 
 As indicated in Figure 4, *mas_vnr_type* and *mas_vnr_area* have the same pattern of missingness, so only one needs to be assessed. Here, the pattern of *foundation* (a related variable) frequencies differed when *mas_vnr_type* was present or absent.
+
+:::
 
 ### B. Impute values
 
@@ -258,31 +287,65 @@ list_rare_cat_viz[["lot_config"]]$plots
 
 ```
 
-Table 8 shows that category 'FR3' occurs less than 0.3% of the time, well below the 2% threshhold. Given that 'FR3' is so rare, its relationship with *sale_price* is less important (which is indicative of the large error bars in the top two plots; Figure 9); thus, it was binned with 'FR2' (as these are similar in shape and frequency) to make 'FR2_3.'
+Table 8 shows that category 'FR3' occurs less than 0.3% of the time, well below the 2% threshold. Given that 'FR3' is so rare, its relationship with *sale_price* is less important (which is indicative of the large error bars in the top two plots; Figure 9); thus, it was binned with 'FR2' (as these are similar in shape and frequency) to make 'FR2_3.'
 
-Below is a summary of the
+Below is a summary of how unordered factor levels were combined.
 
-**\[insert table\]**
+```{r tab9-summary binning rare fct}
+
+DT::datatable(tab_bin_fct)
+
+```
 
 #### Ordered Factors
 
-Below is a summary of how ordered factors were combined.
+Below is a summary of how ordered factor levels were combined.
 
-**\[insert table\]**
+```{r tab10-summary binning rare ord}
+
+DT::datatable(tab_bin_ord)
+
+```
 
 ### B. Feature Scaling
 
 Feature scaling is performed on numerical predictors to normalize their ranges such that these predictors do not have a differential impact on the model simply as an artifact of differences in scales (ranges).
 
-Normality of predictors is important to understand before deciding which scaling technique to employ. This was assessed visually using q-q plots and statistically with Shapiro tests.
+Normality of predictors is important to understand before deciding which scaling technique to employ. This was assessed visually using q-q plots.
 
-**\[insert q-q plots\]**
+::: panel-tabset
+```{r fig10a-qqplot feature scale}
 
-**\[insert table of shapiro test results\]**
+fig_qq_num1
 
-Many of the q-q plots (e.g., \[insert predictor names\]) raise concerns about normal distributions (Figures Xa, b, and c), which is corroborated by Shapiro test results (Table X).
+```
 
-Thus, given the lack of normal distributions as well as the differences in ranges (e.g., \_\_\_\_\_), normalization is an appropriate feature scaling technique, which was applied to the training data.
+```{r fig10b-qqplot feature scale}
+
+fig_qq_num2
+
+```
+
+```{r fig10c-qqplot feature scale}
+
+fig_qq_num3
+
+```
+:::
+
+Many of the q-q plots (e.g., *bsmt_fin_sf1*, *garage_area*, *lot_area*) raise concerns about normal distributions (Figures 10a-c).
+
+Normality was also assessed statistically with Shapiro tests.
+
+```{r tab11-shapiro feature scale}
+
+DT::datatable(tab_shapiro)
+
+```
+
+All numerical predictors were not normally distributed (*p* \< 0.05) per the results of the Shapiro tests (Table 11).
+
+Thus, given both sets of evidence, normalization is an appropriate feature scaling technique for these predictors. This transformation was applied to the training data.
 
 ## VI. Cross-Validation and Modelling
 
@@ -294,39 +357,67 @@ The training data were split into 10 folds prior to model fitting.
 
 ### B. Model training data
 
-Three different model types were used in modelling the house price data: decision tree, random forest, and K-nearest neighbor. These model types were selected because \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_.
+Three different model types were used in modelling the house price data: decision tree, random forest, and K-nearest neighbor.
 
-The models were fit to the training data and their metrics were evaluated (Table x).
+The models were fit to the training data and their metrics were evaluated.
 
-**\[insert table\]**
+```{r tab12-model cross-validation metrics}
+
+DT::datatable(tab_model_cv_metrics)
+
+```
 
 The root-mean squared error (RMSE) and r^2^ indicate that the random forest model performed the best during cross-validation and thus was selected for hyperparameter tuning.
 
-### C. Hyperparameter tuning
+### C. Hyperparameter tuning and model selection
 
-Given computational limitations, only two of three parameters were tuned--*trees* and *min_n*--using five levels each in a regular grid (Table x).
+Given computational limitations, only two of three parameters were tuned--*trees* and *min_n*--using five levels each in a regular grid (Table 13).
 
-**\[insert table\]**
+```{r tab13-random forest tuning grid}
 
-### D. Model selection
+DT::datatable(grid_rf)
 
-The results from model tuning are present in Figure X and Table X.
+```
 
-**\[insert Figure\]**
+The random forest model was tuned using these hyperparameters on the cross-validation folds.
 
-**\[insert Table\]**
+```{r fig11-random forest tuning metrics}
 
-These results indicate that the random forest model with *trees* = 2000 and *min_n* = 2 performed the best in cross-validation.
+fig_metric_tune_rf
+
+```
+
+```{r tab14-random forest tuning metrics}
+
+tab_cv_metrics_tune_rf
+
+```
+
+These results (Fig. 11; Table 14) indicate that the random forest model with *trees* = 2000 and *min_n* = 2 performed the best in cross-validation.
 
 ### E. Model diagnostics
 
-Variable importance was assessed for the selected model (Table X, Figure X).
+Variable importance was assessed for the selected model.
 
-**\[insert Table X\]**
+```{r tab15-random forest final model vi}
 
-**\[insert Figure X\]**
+DT::datatable(tab_vi_rf_final_model)
 
-These results indicate that \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_.
+```
+
+```{r fig12-random forest final model vip}
+
+fig_vip_rf_final_model
+
+```
+
+These results indicate that *overall_qual* was the most important variable with an importance value of 1.09 x 10^12^ followed by *gr_liv_area* and *garage_cars*. Here is a boxplot showing the clear relationship between overall quality (*overall_qual*) and sale price.
+
+```{r fig13-boxplot overall_qual sale_price}
+
+fig_overall_qual_sale_price_box 
+
+```
 
 ## VII. Prepare Test Data
 
@@ -334,21 +425,29 @@ The test data were prepared in the same manner and using the same methods as the
 
 ### A. Initial data cleaning
 
-The same data cleaning steps (i.e., converting variable names from camel case to snake case, *garage_yr_blt* was populated with -1000 if the value was not applicable and NA if missing, all character variables aside from *id* were converted to factors, and not applicable values of factors were converted to variable-specific classes (e.g., "NG" for "no garage").
+The same data cleaning steps used on the training data were also applied to the test dataset: 1) converting variable names from camel case to snake case, 2) *garage_yr_blt* was populated with -1000 if the value was not applicable and NA if missing, 3) all character variables aside from *id* were converted to factors, and 4) not applicable values of factors were converted to variable-specific classes (e.g., "NG" for "no garage").
 
 ### B. Missingness: assessment and imputation
 
-Missingness was assessed visually (Figure x; Table x).
+Missingness in the test data was assessed visually.
 
-**\[insert figure\]**
+```{r tab16-test data missingness}
 
-**\[insert table\]**
+DT::datatable(tab_test_missing)
 
-Results (Table x) show that like the training data, *lot_frontage* had the most missing values (15.5%), followed by *mas_vnr_type* and *mas_vnr_area* (at roughly 1% each) and finally 16 other variables with less than 0.3% missing values.
+```
 
-Missing values were imputed with using the \_\_\_\_\_\_\_ method. Note that two *utilities* values remained missing (Table x), but this variable would subsequently be dropped due to low variance.
+Results (Table 16) show that like the training data, *lot_frontage* had the most missing values (15.5%), followed by *mas_vnr_type* and *mas_vnr_area* (at roughly 1% each) and finally 16 other variables had fewer than 0.3% missing values.
 
-**\[insert table\]**
+Missing values were imputed using a classification and regression tree.
+
+```{r tab17-test data imputation results}
+
+DT::datatable(tab_summ_num_imp)
+
+```
+
+Note that two *utilities* values remained missing (Table 17), but this variable would subsequently be dropped due to low variance.
 
 ### C. Feature selection: drop low 'variance' and highly correlated features
 
@@ -356,20 +455,18 @@ Like the training data, low-variance (i..e, *street*, *utilities*, *condition2*,
 
 ### D. Feature engineering: rare-label encoding and feature scaling
 
-Rare feature classes from the test data set were binned in the same manner as the training data (Table x) and numerical features were normalized.
+Rare feature classes from the test data were binned in the same manner as the training data (Tables 9 & 10) and numerical features were normalized.
 
-Now that the test data has been prepared in the same manner as the training data, model evaluate can begin.
+Now that the test data has been prepared in the same manner as the training data, model evaluation can begin.
 
-## VIII. Evaluate Model
+## VIII. Model Evaluation
 
 ### A. Predict sale prices
 
-Using the finalized random forest model with *trees* = 2000 and *min_n* = 2, the model was evaluated on the test data. The *sales_price* values were predicted for each row of the test data (Table x).
-
-**\[insert table\]**
+Using the finalized random forest model with *trees* = 2000 and *min_n* = 2, the model was evaluated on the test data. The *sales_price* values were predicted for each row of the test data.
 
 ### B. Quantify performance on test data
 
-The predicted *sales_price* values associated with each *id* were submitted to Kaggle for scoring. This model scored 0.16399, which is a measure of the RMSE on logged predicted and observed sales prices.
+The predicted *sales_price* values associated with each *id* were submitted to Kaggle for scoring. This model scored **0.16399**, which is a measure of the RMSE on logged predicted and observed sales prices.
 
 ## 
