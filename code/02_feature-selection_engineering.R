@@ -5,13 +5,14 @@
   #dataframe to file
 
 
-# Load Packages, Source Functions & Read in Imputed Data============================================
+# Load Packages, Source Functions and Objects, & Read in Imputed Data===============================
 #load packages
 library(pacman) 
 pacman::p_load(here, tidyverse, janitor, cowplot, rstatix)
 
-#source functions
+#source functions and objects
 source(here("code", "00_helper_fns.R"))
+source(here("code", "00_objects.R"))
 
 #read in data
 in_fp <- here("data", "tidy_data", "train_imputed.rds")
@@ -403,6 +404,7 @@ feat_rare_ord <- df_house_icr %>%
 
 feat_rare_ord
 
+
 ### Look at examples
 #### Identify which have rare categories
 list_rare_ord_viz <- feat_rare_ord %>%
@@ -549,7 +551,69 @@ df_house_icr %>%
   bin_rare_levels() -> df_house_icrc
 #last c = collapsing
 
+
+### Create summary table of binning for report
+#unordered factors
+tab_bin_fct <- tribble(
+  ~factor, ~new_fct_level, ~old_fct_levels,
+  "ms_zoning", "Other", c("RH", "RM", "C (all)"),
+  "lot_config", "FR2_3", c("FR2", "FR3"),
+  "neighborhood", "Other1", c("StoneBr", "Veenker"),
+  "neighborhood", "Other2", c("ClearCr", "Blmngtn"),
+  "neighborhood", "Other3", c("SWISU", "MeadowV", "BrDale", "NPkVill", "Blueste"),
+  "condition1", "RRnear", c("RRAn", "RRAe", "RRNn", "RRNe"),
+  "condition1", "NormPos", c("Norm", "PosN", "PosA"),
+  "house_style", "Story_2_2.5", c("2Story", "2.5Fin"),
+  "house_style", "Other", c("Flat", "Gambrel", "Mansard", "Shed"),
+  "roof_style", "Other", c("Flat", "Gambrel", "Mansard", "Shed"),
+  "exterior1st", "Other", c("WdShing", "Stucco", "AsbShng", "BrkComm", "Stone",
+                                                  "AsphShn", "CBlock", "ImStucc"),
+  "mas_vnr_type", "BrkFace_Cmn", c("BrkFace", "BrkCmn"),
+  "foundation", "Other", c("Slab", "Stone", "Wood"),
+  "heating", "Other", c("GasW", "Grav", "Wall", "OthW", "Floor"),
+  "garage_type", "Other", c("Basment", "CarPort", "2Types"),
+  "misc_feature", "MF", c("Shed", "Gar2", "Othr", "TenC"),
+  "sale_type", "Other", c("COD", "ConLD", "ConLI", "ConLw", "CWD", "Oth", "Con"),
+  "sale_condition", "Other", c("Family", "Alloca", "AdjLand")
+) %>%
+  unnest(old_fct_levels) %>%
+  group_by(factor, new_fct_level) %>%
+  summarize(old_fct_levels=paste(old_fct_levels, collapse=", ")) %>%
+  ungroup() %>%
+  set_names(c("Unordered Factor", "New/Updated Factor Level", "Old Factor Levels"))
+
+#ordered factors
+tab_bin_ord <- tribble(
+  ~factor, ~new_fct_level, ~old_fct_levels,
+  "lot_shape", "IR2_3", c("IR2", "IR3"),
+  "land_slope", "Mod_Sev", c("Mod", "Sev"),
+  "overall_qual", "4_and_less", c("1", "2", "3", "4"),
+  "overall_qual", "9_10", c("9", "10"),
+  "exter_qual", "TA_and_less", c("Po", "Fa", "TA"),
+  "exter_cond", "Ex_Gd", c("Ex", "Gd"),
+  "exter_cond", "Fa_Po", c("Fa", "Po"),
+  "bsmt_cond", "Ex_Gd", c("Ex", "Gd"),
+  "bsmt_cond", "Fa_Po", c("Fa", "Po"),
+  "bsmt_fin_type2", "ALQ_GLQ", c("ALQ", "GLQ"),
+  "heating_qc", "Fa_Po", c("Fa", "Po"),
+  "electrical", "FuseF_P_Mix", c("FuseF", "FuseP", "Mix"),
+  "functional", "Poor", c("Mod", "Maj1", "Maj2", "Sev", "Sal"),
+  "fireplace_qu", "Ex_Gd", c("Ex", "Gd"),
+  "fireplace_qu", "Fa_Po", c("Fa", "Po"),
+  "garage_qual", "Ex_Gd_TA", c("Ex", "Gd", "TA"),
+  "garage_qual", "Fa_Po", c("Fa", "Po"),
+  "garage_cond", "Ex_Gd_TA", c("Ex", "Gd", "TA"),
+  "garage_cond", "Fa_Po", c("Fa", "Po"),
+  "fence", "Ww", c("GdWo", "MnWw")
+) %>%
+  unnest(old_fct_levels) %>%
+  group_by(factor, new_fct_level) %>%
+  summarize(old_fct_levels=paste(old_fct_levels, collapse=", ")) %>%
+  ungroup() %>%
+  set_names(c("Ordered Factor", "New/Updated Factor Level", "Old Factor Levels"))
   
+
+
 # Feature Engineering: Discretization===============================================================
 #[Note: revisit later if model performs poorly]
 ### Rationale to  discretization
@@ -675,17 +739,27 @@ df_house_icrc %>%
 
 
 ## Check for normal distribution
-make_qqplots(num_preds1)
-make_qqplots(num_preds2)
-make_qqplots(num_preds3)
+### QQ plots
+fig_qq_num1 <- make_qqplots(num_preds1)
+fig_qq_num2 <- make_qqplots(num_preds2)
+fig_qq_num3 <- make_qqplots(num_preds3)
 #major concerns about normal distribution
 
-df_house_icrc %>%
+fig_qq_num1
+fig_qq_num2
+fig_qq_num3
+
+
+### Shapiro tests
+tab_shapiro <- df_house_icrc %>%
   select(all_of(num_preds)) %>%
   pivot_longer(cols=everything(), names_to="predictor", values_to="value") %>%
   group_by(predictor) %>%
   shapiro_test(value) %>%
+  mutate(sig=p <= 0.05) %>%
   arrange(desc(p)) 
+
+tab_shapiro
 #all highly significant
 
 
