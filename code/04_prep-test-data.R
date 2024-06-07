@@ -27,14 +27,14 @@ df_test0 <- read_csv(here("data", "raw_data", "test.csv"),
 ## Data checking
 #overall
 dim(df_test0)
-head(df_test, n=10)
-summary(df_test)
+head(df_test0, n=10)
+summary(df_test0)
 skim(df_test0)
 
 #by type
-skim_by_type(data=df_test, fn=is.character)
-skim_by_type(data=df_test, fn=is.factor)
-skim_by_type(data=df_test, fn=is.numeric) 
+skim_by_type(data=df_test0, fn=is.character)
+skim_by_type(data=df_test0, fn=is.factor)
+skim_by_type(data=df_test0, fn=is.numeric) 
 
 
 ## Data cleaning
@@ -61,11 +61,13 @@ df_test %>%
 
 
 #### Examine missingness
-map_int(df_test, function(x) sum(is.na(x))) %>%
+tab_test_missing <- map_int(df_test, function(x) sum(is.na(x))) %>%
   enframe(name="predictor", value="n_na") %>%
   filter(n_na > 0) %>%
   mutate(pct_na=(n_na/1460) * 100) %>%
   arrange(desc(n_na)) 
+
+tab_test_missing
 #lot_frontage: ~15.5%
 #mas_vnr_type & mas_vnr_area: ~1%
 #other 16: < .3%
@@ -78,7 +80,8 @@ df_test %>%
   complete() %>%
   as_tibble() -> df_test_i
 
-skim(df_test_i)
+tab_summ_num_imp <- skim_by_type(df_test_i, fn=is.numeric)
+tab_summ_num_imp
 #note: utilities was not imputed; however, utilities gets dropped due to constancy
 
 
