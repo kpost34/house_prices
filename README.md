@@ -1,29 +1,13 @@
 # **House Prices Regression Project**
-Predict housing prices using a regression algorithm.
+Predict housing prices using a machine learning algorithm.
 
-## Introduction
-
-
-## Technologies
-* R 4.3.0 ("Already Tomorrow")
+## Summary
+This project is from the Kaggle competition [House Prices - Advanced Regression Techniques](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques). For this exercise, 79 explanatory variables that describe homes in Ames, IA, are used to develop a machine learning model that can predict their sale prices. Specifically, data underwent cleaning, exploration,
+imputation (for missing values), and various forms of feature engineering/selection prior to model development, tuning, and ultimately selection. The best model, a tuned random forest model, was then evaluated using the unseen test data.
 
 
-## Future updates
-- [ ] Read in raw data
-- [ ] Clean data
-- [ ] Impute missing data
-- [ ] Check data
-- [ ] Engineer features
-- [ ] Reduce dimensionality
-- [ ] Save tidy data
-- [ ] EDA
-- [ ] Build model
-- [ ] Fit model
-- [ ] Cross-validate
-- [ ] Tune model
-- [ ] Test model
-- [ ] Write up results
-
+## R Product
++ report - TBD
 
 
 #### **Project Creator: Keith Post**
