@@ -6,7 +6,7 @@ This project is from the Kaggle competition [House Prices - Advanced Regression 
 imputation (for missing values), and various forms of feature engineering/selection prior to model development, tuning, and ultimately selection. The best model, a tuned random forest model, was then evaluated using the unseen test data.
 
 
-## R Product
+## Report
 + [Report: html format](https://github.com/kpost34/house_prices/blob/master/index.html) 
 
 
