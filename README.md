@@ -7,7 +7,7 @@ imputation (for missing values), and various forms of feature engineering/select
 
 
 ## R Product
-+ [Report: html format](https://github.com/kpost34/house_prices/blob/master/house_prices_report.html) 
++ [Report: html format](https://github.com/kpost34/house_prices/blob/master/index.html) 
 
 
 #### **Project Creator: Keith Post**
