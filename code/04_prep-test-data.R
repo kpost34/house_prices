@@ -65,7 +65,8 @@ tab_test_missing <- map_int(df_test, function(x) sum(is.na(x))) %>%
   enframe(name="predictor", value="n_na") %>%
   filter(n_na > 0) %>%
   mutate(pct_na=(n_na/1460) * 100) %>%
-  arrange(desc(n_na)) 
+  arrange(desc(n_na)) %>%
+  mutate(pct_na=signif(pct_na, 3))
 
 tab_test_missing
 #lot_frontage: ~15.5%

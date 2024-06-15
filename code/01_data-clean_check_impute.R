@@ -241,7 +241,8 @@ df_house %>%
 tab_train_miss <- map_int(df_house, function(x) sum(is.na(x))) %>%
   enframe(name="predictor", value="n_na") %>%
   filter(n_na > 0) %>%
-  mutate(pct_na=(n_na/1460) * 100) %>%
+  mutate(pct_na={(n_na/1460) * 100} %>%
+           signif(3)) %>%
   arrange(desc(n_na)) 
 
 tab_train_miss 
@@ -257,21 +258,27 @@ tab_train_miss
 
 #### lot_frontage
 #compare distribution of y for cases when lot_frontage is present vs missing
-fig_sp_dist_lt_miss <- df_house %>%
+fig_sp_dist_lf_miss <- df_house %>%
   mutate(na_lot_frontage=is.na(lot_frontage)) %>%
   ggplot() +
-  geom_histogram(aes(x=sale_price)) +
-  facet_wrap(~na_lot_frontage, nrow=2)
+  geom_histogram(aes(x=sale_price, fill=na_lot_frontage), color="black") +
+  scale_fill_viridis_d() +
+  facet_wrap(~na_lot_frontage, nrow=2) +
+  theme_bw() +
+  theme(legend.position="none")
 
-fig_sp_dist_lt_miss
+fig_sp_dist_lf_miss
 #similar distributions...but 'FALSE' plot is more skewed and different peak than 'TRUE' plot
 
 #compare to a more closely related x variable: lot_shape
 fig_ls_dist_lt_miss <- df_house %>%
   mutate(na_lot_frontage=is.na(lot_frontage)) %>%
   ggplot() +
-  geom_bar(aes(x=lot_shape)) +
-  facet_wrap(~na_lot_frontage, nrow=2)
+  geom_bar(aes(x=lot_shape, fill=na_lot_frontage), color="black") +
+  scale_fill_viridis_d() +
+  facet_wrap(~na_lot_frontage, nrow=2) +
+  theme_bw() +
+  theme(legend.position="none")
 
 fig_ls_dist_lt_miss
 #clearly distribution differs based on presence/absence of lot_frontage data
@@ -282,8 +289,11 @@ fig_ls_dist_lt_miss
 fig_foundation_dist_mvt <- df_house %>%
   mutate(na_mas_vnr_type=is.na(mas_vnr_type)) %>%
   ggplot() +
-  geom_bar(aes(x=foundation)) +
-  facet_wrap(~na_mas_vnr_type, nrow=2)
+  geom_bar(aes(x=foundation, fill=na_mas_vnr_type), color="black") +
+  scale_fill_viridis_d() +
+  facet_wrap(~na_mas_vnr_type, nrow=2) +
+  theme_bw() +
+  theme(legend.position="none")
 
 fig_foundation_dist_mvt
 #all poured concrete

@@ -239,8 +239,28 @@ norm_num_preds <- function(data, vec_preds) {
 
 
 
+# Report Functions==================================================================================
+## DT-related Functions
+### Function to generate simple DT
+create_simple_DT <- function(table, cap="") {
+  DT::datatable(
+    table, rownames=FALSE, options=list(dom='t'),
+    caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left; color:gray;  font-size:100% ;",
+        cap)   
+  )
+}
 
 
+### Function to generate DT w/o rownames & search bar and w/filter
+create_DT <- function(table, cap="") {
+  DT::datatable(
+    table, rownames=FALSE, filter="top", options=list(dom='ltipr'),
+    caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left; color:gray;  font-size:100% ;",
+        cap)
+    )
+}
 
 
 

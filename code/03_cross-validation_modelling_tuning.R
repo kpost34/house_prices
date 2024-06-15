@@ -116,7 +116,9 @@ tab_model_cv_metrics <- list(
               names_glue="{.metric}_{.value}", names_vary="slowest") %>%
   select(!rsq_n) %>%
   relocate(n="rmse_n", .after="model") %>%
-  arrange(rmse_mean)
+  arrange(rmse_mean) %>%
+  mutate(across(.cols=starts_with("rmse"), ~round(.x, 2)),
+         across(.cols=starts_with("rsq"), ~signif(.x, 3)))
 
 tab_model_cv_metrics
 
@@ -206,7 +208,9 @@ tab_cv_metrics_tune_rf <- collect_metrics(fit_rs_tune_rf) %>%
   pivot_wider(names_from=.metric, values_from=c(mean, n, std_err),
               names_vary="slowest", names_glue="{.metric}_{.value}") %>% 
   select(trees, min_n, n="rmse_n", rmse_mean, rmse_std_err, rsq_mean, rsq_std_err, .config) %>%
-  arrange(rmse_mean)
+  arrange(rmse_mean) %>%
+  mutate(across(.cols=starts_with("rmse"), ~round(.x, 2)),
+         across(.cols=starts_with("rsq"), ~signif(.x, 3)))
   
 tab_cv_metrics_tune_rf
 
@@ -306,10 +310,19 @@ final_fit <- fit(wf_rf_final, df_house_train) %>%
 ## Model diagnostics
 final_fit
 
-tab_vi_rf_final_model <- vi(final_fit) 
+tab_vi_rf_final_model <- vi(final_fit) %>%
+  mutate(Importance=signif(Importance,3),
+         Importance=formatC(Importance, format="g", digits=3)) %>%
+  set_names(c("variable", "importance"))
+
 tab_vi_rf_final_model
 
-fig_vip_rf_final_model <- vip(final_fit, num_features=20) 
+fig_vip_rf_final_model_initial <- vip(final_fit, num_features=20)
+
+fig_vip_rf_final_model <- fig_vip_rf_final_model_initial +
+  theme_bw() +
+  theme(axis.text=element_text(size=12))
+
 fig_vip_rf_final_model
 
 
@@ -317,7 +330,8 @@ fig_vip_rf_final_model
 fig_overall_qual_sale_price_box <- df_house_train %>%
   ggplot() +
   geom_boxplot(aes(x=overall_qual, y=sale_price)) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text=element_text(size=12))
 
 fig_overall_qual_sale_price_box 
 

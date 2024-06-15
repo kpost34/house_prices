@@ -131,7 +131,7 @@ tab_train_num_corr <- df_house_ic %>%
   filter(duplicated(predictors)) %>%
   select(-predictors) %>%
   arrange(desc(corr)) %>%
-  rename(`Pearson correlation`="corr")
+  rename(`Pearson_corr`="corr")
 
 tab_train_num_corr
   
@@ -170,7 +170,7 @@ tab_train_ord_corr <- df_house_ic %>%
   filter(duplicated(predictors)) %>%
   select(-predictors) %>%
   arrange(desc(corr)) %>%
-  rename(`Spearman rank correlation`="corr")
+  rename(`Spearman_rank_corr`="corr")
 
 tab_train_ord_corr
 
@@ -227,6 +227,13 @@ list_house_fct_chis %>%
   enframe(name="feature_pair", value="p.value") %>%
   unnest(p.value) -> tab_fct_x2_p 
 
+  #create interim object for report
+  tab_fct_x2_p_report <- tab_fct_x2_p %>%
+    arrange(p.value) %>%
+    mutate(sig=p.value <= 0.05,
+           p.value=signif(p.value, 3),
+           p.value=formatC(p.value, format="g", digits=3))
+
 tab_fct_x2_p %>%
   filter(p.value <= 0.05) %>%
   arrange(p.value) %>% 
@@ -245,11 +252,11 @@ list_house_fct_chis[[1]]["matrix"] %>%
   scale_size_area()
 
 #most 'suspicious' (after looking at 10 pairwise comps with lowest p-values)
-p1_x2 <- plot_counts(plot_num=2)
-p2_x2 <- plot_counts(plot_num=6, legend=TRUE)
+fig1_x2 <- plot_counts(plot_num=2, legend=TRUE)
+fig2_x2 <- plot_counts(plot_num=6, legend=TRUE)
 
-fig_fct_x2 <- plot_grid(p1_x2, p2_x2, nrow=2)
-fig_fct_x2
+fig1_x2
+fig2_x2
 
 low_p_val_x2_feat[1:6]
 
@@ -308,6 +315,11 @@ list_rare_cat_viz[["lot_config"]]
 #FR3 is the only rare category but it makes sense to combine with FR2 given similarity of 
   #category and sale price (despite very low n)
 #FR2_3: FR2, FR3
+
+  #wrangle for report
+  tab_lot_config_rle <- list_rare_cat_viz[["lot_config"]]$freq_table %>%
+    mutate(percent=signif(percent * 100, 3)) %>%
+    rename(level=".x[[i]]")
 
 #neighborhood  
 list_rare_cat_viz[["neighborhood"]]
@@ -552,7 +564,7 @@ df_house_icr %>%
 #last c = collapsing
 
 
-### Create summary table of binning for report
+### Create summary tables of binning for report
 #unordered factors
 tab_bin_fct <- tribble(
   ~factor, ~new_fct_level, ~old_fct_levels,
@@ -580,7 +592,7 @@ tab_bin_fct <- tribble(
   group_by(factor, new_fct_level) %>%
   summarize(old_fct_levels=paste(old_fct_levels, collapse=", ")) %>%
   ungroup() %>%
-  set_names(c("Unordered Factor", "New/Updated Factor Level", "Old Factor Levels"))
+  set_names(c("factor", "new_or_updated_level", "old_levels"))
 
 #ordered factors
 tab_bin_ord <- tribble(
@@ -610,7 +622,7 @@ tab_bin_ord <- tribble(
   group_by(factor, new_fct_level) %>%
   summarize(old_fct_levels=paste(old_fct_levels, collapse=", ")) %>%
   ungroup() %>%
-  set_names(c("Ordered Factor", "New/Updated Factor Level", "Old Factor Levels"))
+  set_names(c("ordered_actor", "new_or_updated_level", "old_levels"))
   
 
 
@@ -756,8 +768,10 @@ tab_shapiro <- df_house_icrc %>%
   pivot_longer(cols=everything(), names_to="predictor", values_to="value") %>%
   group_by(predictor) %>%
   shapiro_test(value) %>%
-  mutate(sig=p <= 0.05) %>%
-  arrange(desc(p)) 
+  mutate(sig=p <= 0.05,
+         across(c(statistic, p),~signif(.x, 3))) %>%
+  arrange(p) %>%
+  mutate(p=formatC(p, format="g", digits=3))
 
 tab_shapiro
 #all highly significant
