@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.433">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Keith Post">
+<meta name="dcterms.date" content="2024-06-14">
+
+<title>Machine Learning with Ames, IA, Housing Prices</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="house_prices_report_files/libs/clipboard/clipboard.min.js"></script>
+<script src="house_prices_report_files/libs/quarto-html/quarto.js"></script>
+<script src="house_prices_report_files/libs/quarto-html/popper.min.js"></script>
+<script src="house_prices_report_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="house_prices_report_files/libs/quarto-html/anchor.min.js"></script>
+<link href="house_prices_report_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="house_prices_report_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="house_prices_report_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="house_prices_report_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="house_prices_report_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+<link href="house_prices_report_files/libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
+<script src="house_prices_report_files/libs/htmlwidgets-1.6.2/htmlwidgets.js"></script>
+<link href="house_prices_report_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="house_prices_report_files/libs/datatables-binding-0.28/datatables.js"></script>
+<script src="house_prices_report_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<link href="house_prices_report_files/libs/dt-core-1.13.4/css/jquery.dataTables.min.css" rel="stylesheet">
+<link href="house_prices_report_files/libs/dt-core-1.13.4/css/jquery.dataTables.extra.css" rel="stylesheet">
+<script src="house_prices_report_files/libs/dt-core-1.13.4/js/jquery.dataTables.min.js"></script>
+<link href="house_prices_report_files/libs/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet">
+<script src="house_prices_report_files/libs/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+<link href="house_prices_report_files/libs/nouislider-7.0.10/jquery.nouislider.min.css" rel="stylesheet">
+<script src="house_prices_report_files/libs/nouislider-7.0.10/jquery.nouislider.min.js"></script>
+<link href="house_prices_report_files/libs/selectize-0.12.0/selectize.bootstrap3.css" rel="stylesheet">
+<script src="house_prices_report_files/libs/selectize-0.12.0/selectize.min.js"></script>
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Machine Learning with Ames, IA, Housing Prices</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Keith Post </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 14, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="background" class="level2">
+<h2 class="anchored" data-anchor-id="background">Background</h2>
+<p>Given 79 explanatory variables, an identifier, and a target variable describing 1460 houses in Ames, IA, the objective of this Kaggle competition is to develop a model to accurately predict home sale prices for 1459 homes in the test dataset. A summary of the data can be found <a href="https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data">here</a>.</p>
+<p>The data are pre-split into training and test data sets. The former has a column with sale prices, while the latter does not.</p>
+</section>
+<section id="i.-initial-data-cleaning" class="level2">
+<h2 class="anchored" data-anchor-id="i.-initial-data-cleaning">I. Initial Data Cleaning</h2>
+<p>The variables from the raw training data were categorized as character, double, or integer types when read into R. The following cleaning steps were taken prior to a deeper exploration of the data:</p>
+<ul>
+<li>column names were converted from snake to camel case</li>
+<li><em>garage_yr_blt</em> was populated with -1000 if the value was not applicable and NA if missing</li>
+<li>not applicable values were populated with a variable-specific character (e.g., “NG” for “no garage”, “NB” for “no basement”) for multiple variables (e.g., <em>garage_type</em>, <em>garage_finish</em>, <em>bsmt_cond</em>, <em>bsmt_qual</em>)</li>
+<li>all character variables aside from <em>id</em> were converted to (unordered and ordered) factors (Table 1)</li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-bd3be6a2c1d063c9d592" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-bd3be6a2c1d063c9d592">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 1. Each variable and associated class in the Ames, IA, housing dataset<\/caption>","data":[["id","alley","bldg_type","central_air","condition1","condition2","exterior1st","exterior2nd","foundation","garage_type","heating","house_style","land_contour","lot_config","mas_vnr_type","misc_feature","ms_sub_class","ms_zoning","neighborhood","roof_matl","roof_style","sale_condition","sale_type","street","bedroom_abv_gr","fireplaces","full_bath","garage_cars","half_bath","kitchen_abv_gr","mo_sold","tot_rms_abv_grd","year_built","year_remod_add","yr_sold","bsmt_fin_sf1","bsmt_fin_sf2","bsmt_full_bath","bsmt_half_bath","bsmt_unf_sf","enclosed_porch","garage_area","garage_yr_blt","gr_liv_area","lot_area","lot_frontage","low_qual_fin_sf","mas_vnr_area","misc_val","open_porch_sf","pool_area","sale_price","screen_porch","total_bsmt_sf","wood_deck_sf","x1st_flr_sf","x2nd_flr_sf","x3ssn_porch","bsmt_cond","bsmt_exposure","bsmt_fin_type1","bsmt_fin_type2","bsmt_qual","electrical","exter_cond","exter_qual","fence","fireplace_qu","functional","garage_cond","garage_finish","garage_qual","heating_qc","kitchen_qual","land_slope","lot_shape","overall_cond","overall_qual","paved_drive","pool_qc","utilities"],["character","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","factor","integer","integer","integer","integer","integer","integer","integer","integer","integer","integer","integer","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered","ordered"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>variable<\/th>\n      <th>class<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","columnDefs":[],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</section>
+<section id="ii.-preliminary-data-checking" class="level2">
+<h2 class="anchored" data-anchor-id="ii.-preliminary-data-checking">II. Preliminary Data Checking</h2>
+<p>Data were checked by looking at the summary information.</p>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">A. Character types</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">B. Factor types</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-3" role="tab" aria-controls="tabset-1-3" aria-selected="false" href="">C. Numeric types</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-0018b537b89058e6030d" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-0018b537b89058e6030d">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 2a. Summary statistics of character class variable id<\/caption>","data":[["id"],[0],[1],[1],[4],[0],[1460],[0]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>skim_variable<\/th>\n      <th>n_missing<\/th>\n      <th>complete_rate<\/th>\n      <th>character.min<\/th>\n      <th>character.max<\/th>\n      <th>character.empty<\/th>\n      <th>character.n_unique<\/th>\n      <th>character.whitespace<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7]}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>Unsurprisingly, <em>id</em> is the only character variable; it has no missing values and all values are unique (Table 2a).</p>
+</div>
+<div id="tabset-1-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-2-tab">
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-8358157d4680d361ccf1" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-8358157d4680d361ccf1">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"8\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.995\" data-max=\"1\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"logical\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"width: 100%; display: none;\">\n      <select multiple=\"multiple\" style=\"width: 100%;\" data-options=\"[&quot;true&quot;,&quot;false&quot;]\"><\/select>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"2\" data-max=\"25\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 2b. Summary statistics of unordered and ordered factors<\/caption>","data":[["ms_sub_class","ms_zoning","street","alley","lot_shape","land_contour","utilities","lot_config","land_slope","neighborhood","condition1","condition2","bldg_type","house_style","overall_qual","overall_cond","roof_style","roof_matl","exterior1st","exterior2nd","mas_vnr_type","exter_qual","exter_cond","foundation","bsmt_qual","bsmt_cond","bsmt_exposure","bsmt_fin_type1","bsmt_fin_type2","heating","heating_qc","central_air","electrical","kitchen_qual","functional","fireplace_qu","garage_type","garage_finish","garage_qual","garage_cond","paved_drive","pool_qc","fence","misc_feature","sale_type","sale_condition"],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0.995,1,1,1,1,1,0.999,1,0.999,1,1,1,0.999,1,1,1,1,1,1,1,1,1,1,1,1,1],[false,false,false,false,true,false,true,false,true,false,false,false,false,false,true,true,false,false,false,false,false,true,true,false,true,true,true,true,true,false,true,false,true,true,true,true,false,true,true,true,true,true,true,false,false,false],[15,5,2,3,4,4,2,5,3,25,9,8,5,8,10,10,6,8,15,16,4,4,5,6,5,5,5,7,7,6,5,2,5,4,7,6,7,4,6,6,3,4,5,5,9,6],["20: 536, 60: 299, 50: 144, 120: 87","RL: 1151, RM: 218, FV: 65, RH: 16","Pav: 1454, Grv: 6","NAl: 1369, Grv: 50, Pav: 41","Reg: 925, IR1: 484, IR2: 41, IR3: 10","Lvl: 1311, Bnk: 63, HLS: 50, Low: 36","All: 1459, NoS: 1, ELO: 0, NoS: 0","Ins: 1052, Cor: 263, Cul: 94, FR2: 47","Gtl: 1382, Mod: 65, Sev: 13","NAm: 225, Col: 150, Old: 113, Edw: 100","Nor: 1260, Fee: 81, Art: 48, RRA: 26","Nor: 1445, Fee: 6, Art: 2, Pos: 2","1Fa: 1220, Twn: 114, Dup: 52, Twn: 43","1St: 726, 2St: 445, 1.5: 154, SLv: 65","5: 397, 6: 374, 7: 319, 8: 168","5: 397, 6: 374, 7: 319, 8: 168","Gab: 1141, Hip: 286, Fla: 13, Gam: 11","Com: 1434, Tar: 11, WdS: 6, WdS: 5","Vin: 515, HdB: 222, Met: 220, Wd : 206","Vin: 504, Met: 214, HdB: 207, Wd : 197","Non: 864, Brk: 445, Sto: 128, Brk: 15","TA: 906, Gd: 488, Ex: 52, Fa: 14","TA: 1282, Gd: 146, Fa: 28, Ex: 3","PCo: 647, CBl: 634, Brk: 146, Sla: 24","TA: 649, Gd: 618, Ex: 121, NB: 37","TA: 1311, Gd: 65, Fa: 45, NB: 37","No: 953, Av: 221, Gd: 134, Mn: 114","Unf: 430, GLQ: 418, ALQ: 220, BLQ: 148","Unf: 1256, Rec: 54, LwQ: 46, NB: 37","Gas: 1428, Gas: 18, Gra: 7, Wal: 4","Ex: 741, TA: 428, Gd: 241, Fa: 49","Y: 1365, N: 95","SBr: 1334, Fus: 94, Fus: 27, Fus: 3","TA: 735, Gd: 586, Ex: 100, Fa: 39","Typ: 1360, Min: 34, Min: 31, Mod: 15","NFp: 690, Gd: 380, TA: 313, Fa: 33","Att: 870, Det: 387, Bui: 88, NG: 81","Unf: 605, RFn: 422, Fin: 352, NG: 81","TA: 1311, NG: 81, Fa: 48, Gd: 14","TA: 1326, NG: 81, Fa: 35, Gd: 9","Y: 1340, N: 90, P: 30","NP: 1453, Gd: 3, Fa: 2, Ex: 2","NFe: 1179, MnP: 157, GdP: 59, GdW: 54","NMF: 1406, She: 49, Gar: 2, Oth: 2","WD: 1267, New: 122, COD: 43, Con: 9","Nor: 1198, Par: 125, Abn: 101, Fam: 20"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>skim_variable<\/th>\n      <th>n_missing<\/th>\n      <th>complete_rate<\/th>\n      <th>factor.ordered<\/th>\n      <th>factor.n_unique<\/th>\n      <th>factor.top_counts<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[1,2,4]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>There are 46 factors–23 unordered and 23 ordered–and only four have missing values (Table 2b). Numbers of factor levels (classes/categories) range from 2-25.</p>
+</div>
+<div id="tabset-1-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-3-tab">
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-c2cab51359a42dbccf3c" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-c2cab51359a42dbccf3c">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"259\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.823\" data-max=\"1\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0575\" data-max=\"181000\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.22\" data-max=\"79400\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1000\" data-max=\"34900\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"130000\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"163000\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"214000\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"2\" data-max=\"755000\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 2c. Summary statistics of numerical variables<\/caption>","data":[["lot_frontage","lot_area","year_built","year_remod_add","mas_vnr_area","bsmt_fin_sf1","bsmt_fin_sf2","bsmt_unf_sf","total_bsmt_sf","x1st_flr_sf","x2nd_flr_sf","low_qual_fin_sf","gr_liv_area","bsmt_full_bath","bsmt_half_bath","full_bath","half_bath","bedroom_abv_gr","kitchen_abv_gr","tot_rms_abv_grd","fireplaces","garage_yr_blt","garage_cars","garage_area","wood_deck_sf","open_porch_sf","enclosed_porch","x3ssn_porch","screen_porch","pool_area","misc_val","mo_sold","yr_sold","sale_price"],[259,0,0,0,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.823,1,1,1,0.995,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[70,10500,1970,1980,104,444,46.5,567,1060,1160,347,5.84,1520,0.425,0.0575,1.57,0.383,2.87,1.05,6.52,0.613,1810,1.77,473,94.2,46.7,22,3.41,15.1,2.76,43.5,6.32,2010,181000],[24.3,9980,30.2,20.6,181,456,161,442,439,387,437,48.6,525,0.519,0.239,0.551,0.503,0.8159999999999999,0.22,1.63,0.645,682,0.747,214,125,66.3,61.1,29.3,55.8,40.2,496,2.7,1.33,79400],[21,1300,1870,1950,0,0,0,0,0,334,0,0,334,0,0,0,0,0,0,2,0,-1000,0,0,0,0,0,0,0,0,0,1,2010,34900],[59,7550,1950,1970,0,0,0,223,796,882,0,0,1130,0,0,1,0,2,1,5,0,1960,1,334,0,0,0,0,0,0,0,5,2010,130000],[69,9480,1970,1990,0,384,0,478,992,1090,0,0,1460,0,0,2,0,3,1,6,1,1980,2,480,0,25,0,0,0,0,0,6,2010,163000],[80,11600,2000,2000,166,712,0,808,1300,1390,728,0,1780,1,0,2,1,3,1,7,1,2000,2,576,168,68,0,0,0,0,0,8,2010,214000],[313,215000,2010,2010,1600,5640,1470,2340,6110,4690,2060,572,5640,3,2,3,2,8,3,14,3,2010,4,1420,857,547,552,508,480,738,15500,12,2010,755000],["▇▃▁▁▁","▇▁▁▁▁","▁▂▃▆▇","▅▂▂▃▇","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▅▂▁▁","▇▃▁▁▁","▇▅▁▁▁","▇▃▂▁▁","▇▁▁▁▁","▇▇▁▁▁","▇▆▁▁▁","▇▁▁▁▁","▁▇▁▇▁","▇▁▅▁▁","▁▇▂▁▁","▁▇▁▁▁","▂▇▇▁▁","▇▇▁▁▁","▁▁▁▁▇","▁▃▇▂▁","▂▇▃▁▁","▇▂▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▃▆▇▃▃","▇▇▇▇▅","▇▅▁▁▁"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>skim_variable<\/th>\n      <th>n_missing<\/th>\n      <th>complete_rate<\/th>\n      <th>numeric.mean<\/th>\n      <th>numeric.sd<\/th>\n      <th>numeric.p0<\/th>\n      <th>numeric.p25<\/th>\n      <th>numeric.p50<\/th>\n      <th>numeric.p75<\/th>\n      <th>numeric.p100<\/th>\n      <th>numeric.hist<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>There are 34 numeric variables, including the target variable (Table 2c). Only two variables contain missing values. Many of the variables (e.g., <em>bsmt_fn_sf1</em>, <em>bsmt_half_bath</em>) contain high frequencies of 0s as indicated by the quartiles.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="iii.-missingness" class="level2">
+<h2 class="anchored" data-anchor-id="iii.-missingness">III. Missingness</h2>
+<section id="a.-assess-missingness" class="level3">
+<h3 class="anchored" data-anchor-id="a.-assess-missingness">A. Assess missingness</h3>
+<p>Missingness of training data were first visualized.</p>
+<div class="cell" data-fig.dim="9in,9in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig1-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 1. Missingness by variable in training data</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure 1 shows that only 0.2% of data are missing and that most of the missingness occurs in one variable.</p>
+<p><br></p>
+<p>Let’s look more closely at variables with missing data.</p>
+<div class="cell" data-fig.dim="7in,5in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig2-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 2. Missingness by variables that have missing values</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Focusing on columns with missingness (Figure 2), <em>lot_frontage</em> has 18% missing values, <em>mas_vnr_type</em> and <em>mas_vnr_area</em> each have about 1% missing values, and the remainder have less than 0.1% missingness.</p>
+<p><br></p>
+<p>Let’s examine missingness by rows.</p>
+<div class="cell" data-fig.dim="5in,4in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig3-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 3. Missingness by rows in training data</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure 3 shows that by far most observations lack a missing value and for those that have at least one NA, it’s overwhelmingly just one.</p>
+<p><br></p>
+<p>It’s also important to note how missing values co-occur in the training data.</p>
+<div class="cell" data-fig.dim="10in,9in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig4-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 4. Missingness patterns in training data</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure 4 indicates that <em>mas_vnr_type</em> and <em>mas_vnr_area</em> have identical patterns of missingness.</p>
+<p><br></p>
+<p>Let’s determine the specifics on number and percent missingness by predictor to better determine patterns of missingness.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-0b431ca18501b2c371d3" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-0b431ca18501b2c371d3">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 3. Number and percent missingness of predictors with at least one missing value<\/caption>","data":[["lot_frontage","mas_vnr_type","mas_vnr_area","bsmt_exposure","bsmt_fin_type2","electrical"],[259,8,8,1,1,1],[17.7,0.548,0.548,0.06850000000000001,0.06850000000000001,0.06850000000000001]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>predictor<\/th>\n      <th>n_na<\/th>\n      <th>pct_na<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","columnDefs":[{"className":"dt-right","targets":[1,2]}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>There are only six predictors with missing values and as mentioned before <em>lot_frontage</em> has the greatest proportion of missing values with nearly 18% values absent (Table 3).</p>
+<p><br></p>
+<p>Let’s evaluate the three predictors with the most missingness to determine whether missingness should be considered ‘missing at random’ (MAR) or ‘missing completely at random’ (MCAR).</p>
+</section>
+<section id="b.-determine-patterns-of-missingness" class="level3">
+<h3 class="anchored" data-anchor-id="b.-determine-patterns-of-missingness">B. Determine patterns of missingness</h3>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-2-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-1" role="tab" aria-controls="tabset-2-1" aria-selected="true" href="">1. <em>lot_frontage</em></a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-2" role="tab" aria-controls="tabset-2-2" aria-selected="false" href="">2. <em>lot_shape</em></a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-3" role="tab" aria-controls="tabset-2-3" aria-selected="false" href="">3. <em>mas_vnr_type</em></a></li></ul>
+<div class="tab-content">
+<div id="tabset-2-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-2-1-tab">
+<div class="cell" data-fig.dim="8in,8in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig5a-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 5a. Distribution of sale prices by lot frontage missing status</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Although these distributions are similar, the plot where <em>lot_frontage</em> is missing is shifted slightly left (Figure 5a).</p>
+</div>
+<div id="tabset-2-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-2-tab">
+<div class="cell" data-fig.dim="8in,8in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig5b-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 5b. Distribution of lot shapes by lot frontage missing status</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The frequency distributions of <em>lot_shape</em> by presence/absence of <em>lot_frontage</em> clearly differ (Figure 5b).</p>
+</div>
+<div id="tabset-2-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-3-tab">
+<div class="cell" data-fig.dim="8in,8in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig5c-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 5c. Distribution of foundations by mas_vnr_type missing status</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>As indicated in Figure 4, <em>mas_vnr_type</em> and <em>mas_vnr_area</em> have the same pattern of missingness, so only one needs to be assessed. Here, the pattern of <em>foundation</em> (a related variable) frequencies differed when <em>mas_vnr_type</em> was present or absent.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="c.-impute-values" class="level3">
+<h3 class="anchored" data-anchor-id="c.-impute-values">C. Impute values</h3>
+<p>Given all of these results, the data do not appear to be MCAR and thus should be considered MAR (note: MNAR would require deeper investigation and gathering more data, which is beyond the scope of this project). Multiple imputation is a reasonable approach for MAR data. The classification and regression tree (‘cart’) approach was used to impute values.</p>
+<p>The pre- and post-imputation dataframes were visualized.</p>
+<div class="cell" data-fig.dim="11in,10in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig6-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 6. Comparison of training data before and after imputation</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Unsurprisingly, the most frequent changes (i.e., NA to non-NA values) occurred within <em>lot_frontage</em> (Figure 6).</p>
+<p><br></p>
+<p>A closer look at <em>lot_frontage</em> shows the relationship between this predictor and <em>sale_price</em> with and without imputed values.</p>
+<div class="cell" data-fig.dim="8in,9in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig7-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 7. Relationship between sale price and lot frontage before after imputation</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure 7 indicates similar relationships between <em>lot_frontage</em> and <em>sale_price</em> without or with imputed <em>lot_frontage</em> values.</p>
+</section>
+</section>
+<section id="iv.-feature-selection" class="level2">
+<h2 class="anchored" data-anchor-id="iv.-feature-selection">IV. Feature Selection</h2>
+<p>After a successful imputation of missing values, feature selection was conducted. Here factor variables that display constancy or low ‘variance’ and highly correlated variables were dropped.</p>
+<section id="a.-drop-low-variance-features" class="level3">
+<h3 class="anchored" data-anchor-id="a.-drop-low-variance-features">A. Drop low ‘variance’ features</h3>
+<p>Low ‘variance’ factor variables means that one category composes at least 98% of the values. Thus, less than 2% of the remaining values for that factor are associated with one or more other categories. There’s a couple reasons to drop these predictors:</p>
+<ol type="1">
+<li>In v-fold cross-validation, there needs to be at least one value of each factor level in each fold. If infrequent factor levels are very rare, then this may not occur or the number of folds may need to be capped at a low number to accommodate this.</li>
+<li>Even if item 1 is accomplished, a small number of a given factor level in one or more folds may lead to over-fitting due to small sample size</li>
+</ol>
+<p>Five factors exhibited constancy: <em>condition2</em>, <em>pool_qc</em>, <em>roof_matl</em>, <em>street</em>, <em>utilities</em> (Table 4).</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-1d2874f7cb1962e3ec1e" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-1d2874f7cb1962e3ec1e">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"factor\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"width: 100%; display: none;\">\n      <select multiple=\"multiple\" style=\"width: 100%;\" data-options=\"[&quot;Grvl&quot;,&quot;Pave&quot;,&quot;NoSeWa&quot;,&quot;AllPub&quot;,&quot;Artery&quot;,&quot;Feedr&quot;,&quot;Norm&quot;,&quot;PosA&quot;,&quot;PosN&quot;,&quot;RRAe&quot;,&quot;RRAn&quot;,&quot;RRNn&quot;,&quot;ClyTile&quot;,&quot;CompShg&quot;,&quot;Membran&quot;,&quot;Metal&quot;,&quot;Roll&quot;,&quot;Tar&amp;Grv&quot;,&quot;WdShake&quot;,&quot;WdShngl&quot;,&quot;NP&quot;,&quot;Fa&quot;,&quot;Gd&quot;,&quot;Ex&quot;]\"><\/select>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"1459\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.068\" data-max=\"99.932\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 4. Number and percentage of factor levels where one level exceeds 98%<\/caption>","data":[["condition2","condition2","condition2","condition2","condition2","condition2","condition2","condition2","pool_qc","pool_qc","pool_qc","pool_qc","roof_matl","roof_matl","roof_matl","roof_matl","roof_matl","roof_matl","roof_matl","roof_matl","street","street","utilities","utilities"],["Norm","Feedr","Artery","PosN","RRNn","PosA","RRAe","RRAn","NP","Gd","Fa","Ex","CompShg","Tar&amp;Grv","WdShngl","WdShake","ClyTile","Membran","Metal","Roll","Pave","Grvl","AllPub","NoSeWa"],[1445,6,2,2,2,1,1,1,1453,3,2,2,1434,11,6,5,1,1,1,1,1454,6,1459,1],[98.973,0.411,0.137,0.137,0.137,0.068,0.068,0.068,99.521,0.205,0.137,0.137,98.21899999999999,0.753,0.411,0.342,0.068,0.068,0.068,0.068,99.589,0.411,99.932,0.068]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>factor<\/th>\n      <th>level<\/th>\n      <th>n<\/th>\n      <th>percent<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</section>
+<section id="b.-remove-highly-correlated-features" class="level3">
+<h3 class="anchored" data-anchor-id="b.-remove-highly-correlated-features">B. Remove highly correlated features</h3>
+<p>Numerical predictors (i.e., integer, double-precision) were assessed for multicollinearity by calculating Pearson correlations for each pair of predictors.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-d769f4c84871569ad230" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-d769f4c84871569ad230">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.495\" data-max=\"0.882\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 5. Pearson correlations of every pair of numerical features<\/caption>","data":[["garage_area","tot_rms_abv_grd","x1st_flr_sf","gr_liv_area","tot_rms_abv_grd","bsmt_full_bath","full_bath","tot_rms_abv_grd","half_bath","year_remod_add","garage_cars","gr_liv_area","tot_rms_abv_grd","garage_area","garage_cars","total_bsmt_sf","bedroom_abv_gr","bedroom_abv_gr","garage_area","garage_area","garage_area","garage_cars","garage_area","full_bath","garage_cars","fireplaces","gr_liv_area","x1st_flr_sf","full_bath","garage_cars","garage_cars","full_bath","garage_cars","half_bath","total_bsmt_sf","x1st_flr_sf","fireplaces","tot_rms_abv_grd","garage_area","total_bsmt_sf","gr_liv_area","full_bath","garage_area","garage_area","gr_liv_area","garage_cars","total_bsmt_sf","bedroom_abv_gr","garage_cars","total_bsmt_sf","tot_rms_abv_grd","x1st_flr_sf","fireplaces","garage_area","open_porch_sf","lot_area","fireplaces","tot_rms_abv_grd","full_bath","x1st_flr_sf","mas_vnr_area","garage_area","bsmt_full_bath","garage_cars","x1st_flr_sf","garage_area","total_bsmt_sf","full_bath","gr_liv_area","tot_rms_abv_grd","x1st_flr_sf","tot_rms_abv_grd","full_bath","fireplaces","garage_area","bsmt_fin_sf1","gr_liv_area","total_bsmt_sf","fireplaces","open_porch_sf","garage_yr_blt","tot_rms_abv_grd","tot_rms_abv_grd","bsmt_fin_sf1","fireplaces","garage_cars","bedroom_abv_gr","wood_deck_sf","open_porch_sf","bsmt_full_bath","fireplaces","half_bath","open_porch_sf","x1st_flr_sf","gr_liv_area","fireplaces","wood_deck_sf","open_porch_sf","wood_deck_sf","bedroom_abv_gr","wood_deck_sf","open_porch_sf","wood_deck_sf","wood_deck_sf","garage_cars","garage_cars","bsmt_fin_sf1","bsmt_fin_sf1","garage_cars","open_porch_sf","open_porch_sf","gr_liv_area","open_porch_sf","wood_deck_sf","fireplaces","wood_deck_sf","half_bath","wood_deck_sf","open_porch_sf","gr_liv_area","kitchen_abv_gr","fireplaces","tot_rms_abv_grd","full_bath","tot_rms_abv_grd","open_porch_sf","bsmt_full_bath","wood_deck_sf","garage_yr_blt","screen_porch","garage_cars","half_bath","garage_area","mas_vnr_area","bsmt_unf_sf","garage_area","garage_area","mas_vnr_area","wood_deck_sf","x2nd_flr_sf","wood_deck_sf","garage_yr_blt","pool_area","open_porch_sf","bedroom_abv_gr","wood_deck_sf","garage_area","garage_yr_blt","wood_deck_sf","bsmt_full_bath","garage_yr_blt","bsmt_full_bath","garage_cars","bsmt_unf_sf","fireplaces","pool_area","x2nd_flr_sf","pool_area","fireplaces","garage_area","open_porch_sf","half_bath","gr_liv_area","garage_yr_blt","kitchen_abv_gr","garage_cars","pool_area","tot_rms_abv_grd","garage_yr_blt","garage_yr_blt","open_porch_sf","bsmt_fin_sf1","bedroom_abv_gr","open_porch_sf","full_bath","pool_area","bedroom_abv_gr","bsmt_full_bath","bsmt_unf_sf","garage_yr_blt","fireplaces","garage_yr_blt","wood_deck_sf","open_porch_sf","bsmt_fin_sf2","bsmt_unf_sf","fireplaces","wood_deck_sf","bedroom_abv_gr","total_bsmt_sf","mas_vnr_area","bedroom_abv_gr","screen_porch","kitchen_abv_gr","wood_deck_sf","x1st_flr_sf","tot_rms_abv_grd","pool_area","open_porch_sf","year_built","garage_yr_blt","wood_deck_sf","garage_yr_blt","screen_porch","screen_porch","bsmt_full_bath","garage_cars","bsmt_full_bath","open_porch_sf","screen_porch","pool_area","pool_area","pool_area","x2nd_flr_sf","screen_porch","garage_yr_blt","pool_area","screen_porch","bsmt_half_bath","pool_area","mo_sold","kitchen_abv_gr","wood_deck_sf","pool_area","bsmt_half_bath","open_porch_sf","yr_sold","garage_area","low_qual_fin_sf","garage_yr_blt","screen_porch","enclosed_porch","screen_porch","pool_area","misc_val","enclosed_porch","x3ssn_porch","screen_porch","pool_area","pool_area","full_bath","kitchen_abv_gr","open_porch_sf","screen_porch","bsmt_fin_sf2","x3ssn_porch","mo_sold","pool_area","half_bath","fireplaces","x2nd_flr_sf","screen_porch","pool_area","bedroom_abv_gr","screen_porch","pool_area","mo_sold","bsmt_half_bath","year_remod_add","bedroom_abv_gr","fireplaces","garage_yr_blt","wood_deck_sf","screen_porch","mo_sold","open_porch_sf","mo_sold","x3ssn_porch","tot_rms_abv_grd","screen_porch","screen_porch","enclosed_porch","pool_area","screen_porch","mo_sold","wood_deck_sf","garage_yr_blt","misc_val","garage_yr_blt","enclosed_porch","enclosed_porch","x3ssn_porch","mo_sold","x3ssn_porch","yr_sold","bsmt_full_bath","x3ssn_porch","x3ssn_porch","x3ssn_porch","mo_sold","mo_sold","mo_sold","bsmt_half_bath","screen_porch","misc_val","yr_sold","yr_sold","low_qual_fin_sf","x3ssn_porch","mo_sold","kitchen_abv_gr","misc_val","fireplaces","x3ssn_porch","mo_sold","low_qual_fin_sf","mo_sold","screen_porch","mo_sold","bsmt_half_bath","x3ssn_porch","misc_val","screen_porch","mo_sold","pool_area","yr_sold","x3ssn_porch","x3ssn_porch","pool_area","mo_sold","mo_sold","x3ssn_porch","pool_area","x3ssn_porch","mo_sold","yr_sold","garage_yr_blt","open_porch_sf","misc_val","pool_area","misc_val","low_qual_fin_sf","year_built","year_remod_add","half_bath","enclosed_porch","yr_sold","mo_sold","pool_area","mo_sold","x3ssn_porch","yr_sold","x2nd_flr_sf","enclosed_porch","kitchen_abv_gr","misc_val","pool_area","low_qual_fin_sf","pool_area","misc_val","yr_sold","x2nd_flr_sf","half_bath","enclosed_porch","misc_val","open_porch_sf","bsmt_half_bath","yr_sold","misc_val","misc_val","mo_sold","bsmt_half_bath","x3ssn_porch","misc_val","mo_sold","full_bath","misc_val","bsmt_unf_sf","enclosed_porch","mo_sold","x3ssn_porch","misc_val","wood_deck_sf","x3ssn_porch","bsmt_half_bath","x3ssn_porch","misc_val","mo_sold","x3ssn_porch","misc_val","yr_sold","screen_porch","pool_area","garage_yr_blt","enclosed_porch","mo_sold","gr_liv_area","misc_val","misc_val","yr_sold","yr_sold","kitchen_abv_gr","yr_sold","bsmt_half_bath","half_bath","screen_porch","low_qual_fin_sf","misc_val","yr_sold","yr_sold","yr_sold","pool_area","misc_val","mo_sold","yr_sold","bedroom_abv_gr","mo_sold","kitchen_abv_gr","garage_area","enclosed_porch","misc_val","bsmt_half_bath","misc_val","yr_sold","fireplaces","garage_cars","misc_val","mo_sold","misc_val","bsmt_half_bath","tot_rms_abv_grd","x3ssn_porch","x3ssn_porch","misc_val","yr_sold","garage_area","wood_deck_sf","open_porch_sf","enclosed_porch","x3ssn_porch","mo_sold","half_bath","misc_val","yr_sold","mo_sold","yr_sold","yr_sold","x3ssn_porch","misc_val","half_bath","screen_porch","half_bath","low_qual_fin_sf","x3ssn_porch","misc_val","mo_sold","tot_rms_abv_grd","pool_area","yr_sold","yr_sold","x3ssn_porch","yr_sold","bsmt_half_bath","kitchen_abv_gr","garage_cars","kitchen_abv_gr","screen_porch","yr_sold","half_bath","bedroom_abv_gr","kitchen_abv_gr","yr_sold","kitchen_abv_gr","misc_val","bsmt_full_bath","yr_sold","bsmt_fin_sf2","half_bath","bsmt_fin_sf2","enclosed_porch","screen_porch","garage_cars","screen_porch","tot_rms_abv_grd","full_bath","yr_sold","yr_sold","low_qual_fin_sf","garage_area","low_qual_fin_sf","full_bath","enclosed_porch","bsmt_fin_sf2","kitchen_abv_gr","garage_area","low_qual_fin_sf","kitchen_abv_gr","open_porch_sf","bedroom_abv_gr","enclosed_porch","bsmt_fin_sf2","screen_porch","full_bath","kitchen_abv_gr","screen_porch","wood_deck_sf","enclosed_porch","garage_cars","enclosed_porch","enclosed_porch","bsmt_half_bath","x2nd_flr_sf","enclosed_porch","bedroom_abv_gr","enclosed_porch","enclosed_porch","half_bath","enclosed_porch","fireplaces","enclosed_porch","x2nd_flr_sf","garage_yr_blt","yr_sold","bsmt_half_bath","kitchen_abv_gr","bedroom_abv_gr","enclosed_porch","garage_yr_blt","bsmt_full_bath","x2nd_flr_sf","kitchen_abv_gr","low_qual_fin_sf","enclosed_porch","x2nd_flr_sf","bsmt_unf_sf","enclosed_porch","bsmt_full_bath","bsmt_unf_sf"],["garage_cars","gr_liv_area","total_bsmt_sf","x2nd_flr_sf","bedroom_abv_gr","bsmt_fin_sf1","gr_liv_area","x2nd_flr_sf","x2nd_flr_sf","year_built","garage_yr_blt","x1st_flr_sf","full_bath","garage_yr_blt","year_built","bsmt_fin_sf1","gr_liv_area","x2nd_flr_sf","x1st_flr_sf","total_bsmt_sf","year_built","full_bath","gr_liv_area","year_built","gr_liv_area","gr_liv_area","total_bsmt_sf","bsmt_fin_sf1","year_remod_add","x1st_flr_sf","total_bsmt_sf","x2nd_flr_sf","year_remod_add","gr_liv_area","bsmt_unf_sf","lot_frontage","x1st_flr_sf","x1st_flr_sf","full_bath","year_built","mas_vnr_area","x1st_flr_sf","mas_vnr_area","year_remod_add","lot_frontage","mas_vnr_area","mas_vnr_area","full_bath","tot_rms_abv_grd","lot_frontage","half_bath","mas_vnr_area","total_bsmt_sf","tot_rms_abv_grd","gr_liv_area","lot_frontage","tot_rms_abv_grd","lot_frontage","total_bsmt_sf","bsmt_unf_sf","year_built","lot_frontage","total_bsmt_sf","fireplaces","lot_area","bsmt_fin_sf1","year_remod_add","bsmt_unf_sf","year_remod_add","total_bsmt_sf","year_built","mas_vnr_area","mas_vnr_area","lot_area","fireplaces","mas_vnr_area","lot_area","lot_area","bsmt_fin_sf1","full_bath","year_built","kitchen_abv_gr","bsmt_unf_sf","year_built","mas_vnr_area","lot_frontage","lot_frontage","gr_liv_area","total_bsmt_sf","x1st_flr_sf","full_bath","year_built","garage_area","year_remod_add","bsmt_unf_sf","lot_frontage","x1st_flr_sf","tot_rms_abv_grd","total_bsmt_sf","half_bath","garage_cars","year_remod_add","year_built","garage_area","bsmt_fin_sf1","half_bath","lot_frontage","lot_area","bsmt_unf_sf","garage_cars","x1st_flr_sf","bsmt_fin_sf1","x2nd_flr_sf","year_remod_add","half_bath","bsmt_fin_sf1","mas_vnr_area","fireplaces","half_bath","year_built","bedroom_abv_gr","x2nd_flr_sf","year_remod_add","lot_frontage","lot_area","year_built","year_built","full_bath","fireplaces","fireplaces","x2nd_flr_sf","year_remod_add","bsmt_unf_sf","year_remod_add","year_remod_add","lot_area","bsmt_full_bath","lot_frontage","bsmt_full_bath","mas_vnr_area","lot_area","total_bsmt_sf","gr_liv_area","fireplaces","bsmt_unf_sf","tot_rms_abv_grd","half_bath","x1st_flr_sf","mas_vnr_area","bsmt_fin_sf2","gr_liv_area","lot_area","lot_area","year_built","year_built","lot_frontage","year_remod_add","bsmt_fin_sf1","bsmt_full_bath","x2nd_flr_sf","lot_frontage","full_bath","low_qual_fin_sf","year_remod_add","full_bath","bsmt_full_bath","x1st_flr_sf","low_qual_fin_sf","mas_vnr_area","full_bath","bsmt_unf_sf","year_remod_add","x1st_flr_sf","mas_vnr_area","lot_area","total_bsmt_sf","lot_area","year_remod_add","mas_vnr_area","half_bath","year_remod_add","bsmt_fin_sf1","garage_yr_blt","bsmt_fin_sf1","lot_area","lot_frontage","bedroom_abv_gr","half_bath","low_qual_fin_sf","bsmt_fin_sf2","lot_area","mas_vnr_area","gr_liv_area","gr_liv_area","lot_frontage","bsmt_fin_sf2","year_built","fireplaces","bedroom_abv_gr","lot_frontage","tot_rms_abv_grd","x2nd_flr_sf","lot_frontage","bsmt_fin_sf2","x1st_flr_sf","lot_frontage","bedroom_abv_gr","mas_vnr_area","lot_area","total_bsmt_sf","tot_rms_abv_grd","x2nd_flr_sf","lot_area","lot_frontage","open_porch_sf","lot_area","wood_deck_sf","half_bath","bsmt_fin_sf2","bedroom_abv_gr","open_porch_sf","x1st_flr_sf","bsmt_fin_sf2","bsmt_full_bath","bsmt_fin_sf1","bsmt_full_bath","bsmt_full_bath","bedroom_abv_gr","x2nd_flr_sf","x2nd_flr_sf","garage_yr_blt","x2nd_flr_sf","bsmt_fin_sf1","low_qual_fin_sf","kitchen_abv_gr","low_qual_fin_sf","lot_frontage","mas_vnr_area","garage_area","open_porch_sf","bsmt_fin_sf1","x2nd_flr_sf","wood_deck_sf","tot_rms_abv_grd","lot_frontage","x1st_flr_sf","full_bath","enclosed_porch","lot_frontage","bsmt_unf_sf","lot_area","garage_area","screen_porch","total_bsmt_sf","garage_cars","full_bath","gr_liv_area","lot_area","lot_frontage","bsmt_half_bath","bsmt_fin_sf2","bsmt_full_bath","bedroom_abv_gr","lot_frontage","bedroom_abv_gr","garage_yr_blt","fireplaces","year_remod_add","bsmt_fin_sf1","bedroom_abv_gr","lot_area","bedroom_abv_gr","bsmt_fin_sf2","x2nd_flr_sf","garage_cars","bsmt_half_bath","bsmt_unf_sf","lot_area","bsmt_fin_sf2","bsmt_fin_sf2","kitchen_abv_gr","total_bsmt_sf","tot_rms_abv_grd","garage_cars","year_remod_add","gr_liv_area","bsmt_half_bath","full_bath","garage_area","bsmt_unf_sf","x2nd_flr_sf","bsmt_half_bath","lot_frontage","bsmt_half_bath","screen_porch","bsmt_fin_sf2","kitchen_abv_gr","lot_frontage","year_built","x1st_flr_sf","bsmt_unf_sf","pool_area","bsmt_half_bath","garage_yr_blt","x3ssn_porch","bsmt_unf_sf","garage_area","low_qual_fin_sf","kitchen_abv_gr","mas_vnr_area","bsmt_fin_sf1","tot_rms_abv_grd","bsmt_full_bath","screen_porch","half_bath","wood_deck_sf","bsmt_unf_sf","gr_liv_area","garage_cars","year_remod_add","wood_deck_sf","lot_area","bsmt_half_bath","mas_vnr_area","garage_yr_blt","x3ssn_porch","bsmt_half_bath","low_qual_fin_sf","enclosed_porch","garage_yr_blt","x2nd_flr_sf","bsmt_fin_sf2","lot_area","lot_area","lot_area","lot_frontage","bsmt_fin_sf1","total_bsmt_sf","mas_vnr_area","year_built","fireplaces","screen_porch","year_built","gr_liv_area","low_qual_fin_sf","bedroom_abv_gr","year_remod_add","lot_area","year_built","bsmt_fin_sf2","misc_val","bsmt_unf_sf","bsmt_fin_sf1","tot_rms_abv_grd","bsmt_fin_sf1","bsmt_fin_sf2","x1st_flr_sf","lot_frontage","half_bath","fireplaces","lot_area","total_bsmt_sf","bsmt_full_bath","x3ssn_porch","lot_frontage","low_qual_fin_sf","gr_liv_area","lot_area","bsmt_unf_sf","mas_vnr_area","low_qual_fin_sf","low_qual_fin_sf","bsmt_unf_sf","half_bath","low_qual_fin_sf","open_porch_sf","garage_yr_blt","misc_val","tot_rms_abv_grd","bsmt_half_bath","mas_vnr_area","full_bath","x3ssn_porch","bedroom_abv_gr","bsmt_half_bath","half_bath","bsmt_fin_sf2","year_remod_add","wood_deck_sf","half_bath","enclosed_porch","lot_frontage","garage_yr_blt","year_remod_add","bsmt_half_bath","bsmt_unf_sf","x1st_flr_sf","full_bath","lot_area","year_built","x1st_flr_sf","kitchen_abv_gr","lot_frontage","bsmt_fin_sf2","total_bsmt_sf","bsmt_fin_sf2","bsmt_fin_sf1","lot_area","bsmt_fin_sf2","lot_area","total_bsmt_sf","gr_liv_area","open_porch_sf","full_bath","low_qual_fin_sf","bsmt_half_bath","x1st_flr_sf","low_qual_fin_sf","bsmt_full_bath","x2nd_flr_sf","bsmt_half_bath","x2nd_flr_sf","bedroom_abv_gr","bsmt_unf_sf","fireplaces","bsmt_half_bath","low_qual_fin_sf","bsmt_half_bath","fireplaces","kitchen_abv_gr","bsmt_full_bath","low_qual_fin_sf","garage_area","garage_area","enclosed_porch","x2nd_flr_sf","low_qual_fin_sf","bsmt_fin_sf2","mas_vnr_area","bsmt_full_bath","x3ssn_porch","bsmt_fin_sf2","total_bsmt_sf","wood_deck_sf","year_built","pool_area","bsmt_fin_sf2","bsmt_unf_sf","tot_rms_abv_grd","bedroom_abv_gr","enclosed_porch","gr_liv_area","year_built","bsmt_half_bath","bsmt_fin_sf2","mas_vnr_area","year_remod_add","garage_cars","bsmt_unf_sf","year_remod_add","bsmt_fin_sf2","bsmt_unf_sf","bsmt_full_bath","garage_cars","low_qual_fin_sf","bsmt_half_bath","year_built","total_bsmt_sf","bsmt_fin_sf1","bsmt_full_bath","year_built","kitchen_abv_gr","kitchen_abv_gr","bsmt_full_bath","bsmt_half_bath","open_porch_sf","pool_area","year_remod_add","kitchen_abv_gr","bsmt_fin_sf1","bsmt_full_bath","x1st_flr_sf","year_remod_add","half_bath","low_qual_fin_sf","mas_vnr_area","total_bsmt_sf","kitchen_abv_gr","year_built","garage_yr_blt","mas_vnr_area","wood_deck_sf","bsmt_fin_sf2","bsmt_fin_sf1","enclosed_porch","kitchen_abv_gr","open_porch_sf","low_qual_fin_sf","total_bsmt_sf","half_bath","bsmt_unf_sf","bsmt_fin_sf2","bsmt_fin_sf1","bsmt_fin_sf1","mas_vnr_area","full_bath","x1st_flr_sf","garage_area","kitchen_abv_gr","wood_deck_sf","bsmt_fin_sf1","low_qual_fin_sf","mo_sold","bsmt_full_bath","year_remod_add","bsmt_full_bath","garage_cars","kitchen_abv_gr","x2nd_flr_sf","total_bsmt_sf","year_built","year_built","year_remod_add","x1st_flr_sf","bsmt_fin_sf2","year_built","bsmt_unf_sf","bsmt_fin_sf1"],[0.882,0.825,0.82,0.6879999999999999,0.677,0.649,0.63,0.616,0.61,0.593,0.59,0.5659999999999999,0.555,0.553,0.538,0.522,0.521,0.503,0.49,0.487,0.479,0.47,0.469,0.468,0.467,0.462,0.455,0.446,0.439,0.439,0.435,0.421,0.421,0.416,0.415,0.413,0.411,0.41,0.406,0.391,0.389,0.381,0.373,0.372,0.369,0.365,0.363,0.363,0.362,0.353,0.343,0.342,0.34,0.338,0.33,0.326,0.326,0.325,0.324,0.318,0.317,0.308,0.307,0.301,0.299,0.297,0.291,0.289,0.287,0.286,0.282,0.28,0.277,0.271,0.269,0.263,0.263,0.261,0.26,0.26,0.258,0.256,0.251,0.25,0.248,0.248,0.247,0.247,0.247,0.245,0.244,0.243,0.241,0.24,0.24,0.24,0.235,0.234,0.232,0.227,0.226,0.226,0.225,0.225,0.224,0.219,0.215,0.214,0.214,0.214,0.212,0.208,0.208,0.206,0.204,0.204,0.201,0.2,0.2,0.199,0.199,0.195,0.192,0.19,0.19,0.189,0.188,0.188,0.186,0.185,0.184,0.183,0.183,0.181,0.181,0.18,0.179,0.178,0.175,0.174,0.172,0.171,0.17,0.169,0.167,0.166,0.164,0.163,0.161,0.159,0.159,0.158,0.155,0.149,0.148,0.146,0.14,0.14,0.138,0.138,0.138,0.136,0.135,0.135,0.133,0.132,0.132,0.131,0.13,0.129,0.129,0.128,0.127,0.127,0.126,0.126,0.12,0.119,0.115,0.114,0.113,0.113,0.113,0.112,0.111,0.108,0.108,0.108,0.106,0.105,0.103,0.103,0.102,0.1,0.098,0.097,0.096,0.095,0.094,0.093,0.093,0.092,0.091,0.089,0.089,0.08799999999999999,0.08599999999999999,0.08500000000000001,0.08500000000000001,0.08400000000000001,0.08400000000000001,0.081,0.078,0.076,0.074,0.073,0.073,0.07199999999999999,0.07099999999999999,0.07099999999999999,0.07099999999999999,0.068,0.068,0.068,0.067,0.067,0.067,0.065,0.063,0.063,0.063,0.062,0.062,0.062,0.062,0.061,0.061,0.061,0.061,0.061,0.059,0.059,0.059,0.059,0.057,0.056,0.056,0.054,0.052,0.052,0.051,0.051,0.051,0.05,0.05,0.05,0.05,0.048,0.047,0.047,0.047,0.047,0.047,0.047,0.047,0.046,0.046,0.045,0.044,0.044,0.043,0.042,0.042,0.041,0.041,0.04,0.039,0.038,0.037,0.037,0.037,0.037,0.037,0.036,0.036,0.035,0.035,0.035,0.035,0.035,0.035,0.033,0.032,0.032,0.032,0.032,0.032,0.031,0.031,0.031,0.03,0.03,0.029,0.029,0.029,0.028,0.028,0.027,0.027,0.026,0.026,0.025,0.023,0.023,0.022,0.022,0.021,0.021,0.021,0.021,0.021,0.02,0.02,0.019,0.019,0.019,0.018,0.018,0.018,0.016,0.016,0.015,0.014,0.014,0.014,0.014,0.014,0.013,0.012,0.012,0.011,0.011,0.01,0.008999999999999999,0.008,0.008,0.006,0.005,0.005,0.005,0.005,0.004,0.004,0.004,0.004,0.003,0.002,0.002,0.001,0.001,0.001,-0,-0,0,-0,-0.001,-0.002,-0.003,-0.003,-0.003,-0.004,-0.004,-0.005,-0.005,-0.006,-0.006,-0.006,-0.006,-0.007,-0.007,-0.007,-0.008,-0.008,-0.008999999999999999,-0.008999999999999999,-0.008999999999999999,-0.01,-0.01,-0.01,-0.01,-0.01,-0.011,-0.011,-0.012,-0.012,-0.013,-0.014,-0.014,-0.014,-0.014,-0.014,-0.015,-0.015,-0.015,-0.015,-0.016,-0.016,-0.018,-0.018,-0.018,-0.018,-0.019,-0.019,-0.02,-0.021,-0.021,-0.021,-0.022,-0.023,-0.024,-0.024,-0.024,-0.024,-0.024,-0.024,-0.025,-0.025,-0.025,-0.025,-0.025,-0.025,-0.027,-0.027,-0.027,-0.029,-0.029,-0.029,-0.03,-0.03,-0.031,-0.031,-0.032,-0.033,-0.033,-0.034,-0.034,-0.035,-0.035,-0.035,-0.036,-0.037,-0.037,-0.038,-0.038,-0.038,-0.039,-0.039,-0.039,-0.041,-0.041,-0.041,-0.041,-0.042,-0.043,-0.047,-0.047,-0.049,-0.049,-0.05,-0.05,-0.05,-0.051,-0.052,-0.053,-0.055,-0.058,-0.06,-0.062,-0.064,-0.065,-0.065,-0.065,-0.068,-0.068,-0.068,-0.06900000000000001,-0.06900000000000001,-0.07000000000000001,-0.07099999999999999,-0.07199999999999999,-0.073,-0.074,-0.076,-0.081,-0.083,-0.09,-0.093,-0.094,-0.095,-0.095,-0.096,-0.099,-0.102,-0.107,-0.112,-0.115,-0.12,-0.122,-0.124,-0.126,-0.137,-0.146,-0.146,-0.148,-0.15,-0.151,-0.151,-0.156,-0.169,-0.175,-0.175,-0.184,-0.194,-0.203,-0.209,-0.387,-0.423,-0.495]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>predictor_x<\/th>\n      <th>predictor_y<\/th>\n      <th>Pearson_corr<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":2}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>Table 5 shows that no pair of numerical predictors had a very strong correlation (<em>r</em> &lt; 0.9 for all pairs). Note that this result was unaffected if Spearman rank correlations were used.</p>
+<p><br></p>
+<p>Multicollinearity was also assessed for pairs of ordered factors by computing Spearman rank correlations and using the same threshhold for exclusion.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-d2b9ea8fe7bfe93ed559" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-d2b9ea8fe7bfe93ed559">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.26\" data-max=\"1\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 6. Spearman rank correlations of every pair of ordered factors<\/caption>","data":[["overall_cond","garage_cond","kitchen_qual","exter_qual","exter_qual","bsmt_qual","bsmt_qual","kitchen_qual","kitchen_qual","bsmt_qual","kitchen_qual","garage_finish","garage_finish","garage_finish","heating_qc","garage_finish","kitchen_qual","fireplace_qu","fireplace_qu","garage_finish","heating_qc","heating_qc","heating_qc","garage_cond","garage_qual","garage_finish","paved_drive","bsmt_exposure","garage_finish","bsmt_fin_type1","bsmt_fin_type1","fireplace_qu","fireplace_qu","paved_drive","bsmt_cond","fireplace_qu","bsmt_fin_type2","kitchen_qual","garage_qual","garage_qual","bsmt_exposure","bsmt_exposure","garage_cond","garage_cond","paved_drive","electrical","garage_finish","bsmt_fin_type1","bsmt_fin_type1","bsmt_fin_type1","paved_drive","garage_finish","bsmt_fin_type1","kitchen_qual","paved_drive","garage_finish","kitchen_qual","electrical","electrical","bsmt_exposure","bsmt_exposure","electrical","bsmt_cond","bsmt_cond","paved_drive","garage_qual","garage_cond","paved_drive","paved_drive","electrical","garage_qual","fireplace_qu","garage_cond","paved_drive","garage_cond","garage_cond","electrical","paved_drive","garage_qual","garage_qual","garage_qual","electrical","paved_drive","bsmt_cond","garage_cond","heating_qc","garage_finish","bsmt_fin_type2","kitchen_qual","bsmt_fin_type2","functional","functional","paved_drive","electrical","fireplace_qu","garage_qual","heating_qc","garage_cond","bsmt_cond","heating_qc","garage_cond","functional","garage_cond","fence","functional","fireplace_qu","electrical","garage_qual","functional","garage_finish","paved_drive","functional","garage_qual","functional","paved_drive","garage_cond","land_slope","paved_drive","fireplace_qu","functional","fireplace_qu","garage_qual","electrical","garage_qual","functional","garage_cond","garage_qual","exter_qual","bsmt_fin_type2","functional","garage_cond","functional","fence","functional","fence","garage_cond","paved_drive","heating_qc","garage_qual","bsmt_fin_type1","paved_drive","overall_qual","overall_cond","kitchen_qual","heating_qc","fence","exter_cond","garage_cond","paved_drive","garage_finish","kitchen_qual","fireplace_qu","garage_finish","bsmt_fin_type2","bsmt_exposure","fence","electrical","bsmt_qual","fireplace_qu","fence","fence","garage_qual","fence","fireplace_qu","exter_cond","exter_cond","exter_cond","exter_cond","kitchen_qual","fence","garage_finish","bsmt_fin_type2","bsmt_fin_type2","functional","fireplace_qu","bsmt_cond","fence","bsmt_fin_type1","heating_qc","functional","bsmt_fin_type2","fence","bsmt_fin_type2","bsmt_qual","bsmt_fin_type2","fence","fence","electrical","bsmt_cond","heating_qc","garage_cond","paved_drive","garage_qual","bsmt_fin_type1","fence","fence","kitchen_qual","bsmt_exposure","fireplace_qu","fence","fence","exter_qual","fence","overall_qual","overall_cond","bsmt_exposure","fence","bsmt_qual","garage_finish","fence"],["overall_qual","garage_qual","exter_qual","overall_qual","overall_cond","overall_qual","overall_cond","overall_qual","overall_cond","exter_qual","bsmt_qual","overall_qual","overall_cond","bsmt_qual","exter_qual","exter_qual","heating_qc","overall_qual","overall_cond","kitchen_qual","overall_qual","overall_cond","bsmt_qual","garage_finish","garage_finish","heating_qc","garage_cond","bsmt_qual","fireplace_qu","bsmt_qual","bsmt_exposure","exter_qual","kitchen_qual","garage_qual","bsmt_qual","bsmt_qual","bsmt_cond","bsmt_fin_type1","overall_qual","overall_cond","overall_qual","overall_cond","overall_qual","overall_cond","garage_finish","bsmt_qual","bsmt_fin_type1","overall_qual","overall_cond","exter_qual","bsmt_qual","bsmt_exposure","bsmt_cond","bsmt_exposure","bsmt_fin_type1","electrical","electrical","overall_qual","overall_cond","exter_qual","bsmt_cond","exter_qual","overall_qual","overall_cond","electrical","kitchen_qual","kitchen_qual","overall_qual","overall_cond","bsmt_cond","exter_qual","heating_qc","exter_qual","exter_qual","bsmt_qual","electrical","bsmt_fin_type1","kitchen_qual","fireplace_qu","electrical","bsmt_qual","heating_qc","bsmt_cond","exter_qual","fireplace_qu","bsmt_fin_type1","bsmt_cond","bsmt_exposure","bsmt_cond","bsmt_fin_type1","overall_qual","overall_cond","heating_qc","bsmt_exposure","bsmt_exposure","bsmt_fin_type1","bsmt_cond","bsmt_fin_type1","exter_cond","bsmt_exposure","bsmt_cond","bsmt_qual","heating_qc","bsmt_fin_type2","bsmt_cond","electrical","exter_cond","heating_qc","kitchen_qual","functional","bsmt_fin_type2","bsmt_fin_type1","bsmt_cond","exter_qual","fireplace_qu","exter_cond","lot_shape","bsmt_exposure","bsmt_cond","land_slope","bsmt_fin_type1","bsmt_fin_type2","bsmt_fin_type2","bsmt_exposure","bsmt_exposure","bsmt_fin_type2","exter_cond","land_slope","exter_cond","heating_qc","bsmt_exposure","exter_cond","exter_cond","electrical","lot_shape","functional","exter_cond","land_slope","functional","exter_cond","functional","land_slope","land_slope","exter_cond","exter_cond","land_slope","land_slope","land_slope","land_slope","land_slope","land_slope","functional","bsmt_fin_type2","bsmt_qual","exter_cond","garage_cond","land_slope","land_slope","bsmt_fin_type2","bsmt_cond","garage_qual","land_slope","electrical","exter_cond","exter_qual","overall_qual","overall_cond","lot_shape","bsmt_fin_type2","paved_drive","exter_cond","overall_qual","overall_cond","lot_shape","land_slope","land_slope","bsmt_fin_type1","land_slope","bsmt_fin_type2","bsmt_fin_type2","land_slope","bsmt_exposure","lot_shape","exter_cond","exter_qual","functional","fireplace_qu","lot_shape","lot_shape","lot_shape","lot_shape","lot_shape","lot_shape","lot_shape","garage_finish","kitchen_qual","lot_shape","lot_shape","lot_shape","overall_qual","overall_cond","lot_shape","heating_qc","lot_shape","lot_shape","land_slope","bsmt_qual","lot_shape","lot_shape","exter_qual"],[1,0.8169999999999999,0.725,0.716,0.716,0.673,0.673,0.66,0.66,0.646,0.575,0.5669999999999999,0.5669999999999999,0.556,0.552,0.536,0.533,0.481,0.481,0.48,0.474,0.474,0.454,0.419,0.416,0.406,0.387,0.382,0.38,0.375,0.374,0.352,0.348,0.338,0.317,0.317,0.302,0.284,0.284,0.284,0.282,0.282,0.282,0.282,0.282,0.28,0.275,0.264,0.264,0.263,0.263,0.257,0.256,0.255,0.255,0.254,0.252,0.248,0.248,0.245,0.241,0.239,0.238,0.238,0.236,0.235,0.229,0.227,0.227,0.221,0.22,0.217,0.216,0.216,0.214,0.213,0.211,0.21,0.208,0.201,0.199,0.194,0.194,0.193,0.193,0.192,0.187,0.186,0.185,0.181,0.174,0.174,0.174,0.173,0.172,0.17,0.168,0.166,0.164,0.164,0.158,0.156,0.155,0.148,0.145,0.14,0.138,0.138,0.136,0.127,0.125,0.124,0.123,0.118,0.118,0.117,0.115,0.114,0.108,0.105,0.105,0.097,0.092,0.091,0.089,0.08699999999999999,0.08400000000000001,0.083,0.083,0.082,0.081,0.08,0.074,0.065,0.062,0.06,0.06,0.058,0.056,0.054,0.052,0.049,0.049,0.046,0.045,0.033,0.031,0.03,0.029,0.028,0.025,0.025,0.024,0.022,0.016,0.014,0.013,0.012,0.008999999999999999,0.006,0,-0.001,-0.002,-0.004,-0.008,-0.016,-0.016,-0.026,-0.026,-0.026,-0.027,-0.028,-0.028,-0.028,-0.045,-0.047,-0.048,-0.05,-0.05,-0.052,-0.06,-0.062,-0.063,-0.06900000000000001,-0.07000000000000001,-0.07199999999999999,-0.08799999999999999,-0.108,-0.116,-0.116,-0.118,-0.118,-0.127,-0.128,-0.146,-0.159,-0.173,-0.185,-0.186,-0.189,-0.189,-0.195,-0.201,-0.208,-0.208,-0.221,-0.224,-0.241,-0.246,-0.26]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>predictor_x<\/th>\n      <th>predictor_y<\/th>\n      <th>Spearman_rank_corr<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":2}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>Table 6 indicates that <em>overall_qual</em> and <em>overall_cond</em> are perfectly correlated, so <em>overall_cond</em> was removed. No other pairs of ordered factors had very strong correlations (<em>r</em> &lt; 0.9).</p>
+<p><br></p>
+<p>Multicollinearity among pairs of unordered factors was also investigated using Chi-square tests of independence.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-2a19eb9216bfb87baa2e" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-2a19eb9216bfb87baa2e">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"logical\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"width: 100%; display: none;\">\n      <select multiple=\"multiple\" style=\"width: 100%;\" data-options=\"[&quot;true&quot;,&quot;false&quot;]\"><\/select>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 7. Chi-square test results (i.e., p-value, significance) of every pair of \n          unordered factors<\/caption>","data":[["ms_sub_class__neighborhood","ms_sub_class__bldg_type","ms_sub_class__house_style","ms_zoning__neighborhood","neighborhood__exterior2nd","exterior1st__exterior2nd","sale_type__sale_condition","neighborhood__exterior1st","neighborhood__foundation","neighborhood__bldg_type","ms_sub_class__foundation","ms_sub_class__garage_type","neighborhood__house_style","exterior1st__foundation","exterior2nd__foundation","ms_sub_class__ms_zoning","neighborhood__garage_type","ms_sub_class__exterior2nd","neighborhood__mas_vnr_type","ms_sub_class__exterior1st","alley__neighborhood","ms_zoning__alley","land_contour__neighborhood","foundation__garage_type","roof_style__misc_feature","heating__central_air","foundation__heating","house_style__garage_type","house_style__foundation","ms_zoning__foundation","ms_sub_class__central_air","ms_sub_class__roof_style","ms_sub_class__alley","ms_zoning__garage_type","exterior1st__garage_type","exterior2nd__garage_type","mas_vnr_type__garage_type","neighborhood__sale_condition","neighborhood__condition1","foundation__central_air","central_air__garage_type","ms_zoning__bldg_type","bldg_type__foundation","neighborhood__central_air","mas_vnr_type__foundation","ms_sub_class__mas_vnr_type","exterior1st__mas_vnr_type","house_style__exterior2nd","exterior1st__central_air","ms_zoning__house_style","neighborhood__sale_type","mas_vnr_type__sale_condition","house_style__exterior1st","exterior2nd__mas_vnr_type","bldg_type__garage_type","foundation__sale_condition","exterior2nd__central_air","exterior1st__sale_condition","exterior2nd__heating","alley__foundation","ms_zoning__central_air","neighborhood__roof_style","bldg_type__exterior2nd","ms_zoning__exterior2nd","bldg_type__central_air","mas_vnr_type__sale_type","ms_sub_class__misc_feature","ms_zoning__exterior1st","exterior2nd__sale_condition","foundation__sale_type","bldg_type__sale_condition","bldg_type__house_style","roof_style__exterior2nd","garage_type__sale_condition","house_style__heating","alley__garage_type","ms_sub_class__sale_condition","ms_zoning__sale_type","bldg_type__exterior1st","ms_sub_class__heating","house_style__mas_vnr_type","alley__exterior1st","lot_config__condition1","ms_zoning__sale_condition","alley__exterior2nd","exterior1st__sale_type","house_style__central_air","roof_style__exterior1st","land_contour__roof_style","exterior2nd__sale_type","exterior1st__heating","alley__central_air","alley__bldg_type","ms_sub_class__condition1","roof_style__mas_vnr_type","mas_vnr_type__central_air","ms_sub_class__land_contour","land_contour__house_style","bldg_type__heating","garage_type__sale_type","alley__house_style","lot_config__neighborhood","house_style__roof_style","land_contour__garage_type","heating__garage_type","roof_style__foundation","ms_zoning__mas_vnr_type","land_contour__sale_condition","alley__heating","ms_zoning__land_contour","roof_style__sale_condition","condition1__garage_type","condition1__house_style","ms_sub_class__sale_type","alley__condition1","land_contour__exterior2nd","land_contour__foundation","bldg_type__sale_type","land_contour__exterior1st","house_style__sale_condition","land_contour__mas_vnr_type","alley__roof_style","foundation__misc_feature","land_contour__central_air","bldg_type__mas_vnr_type","condition1__roof_style","alley__mas_vnr_type","condition1__exterior2nd","condition1__foundation","lot_config__roof_style","central_air__sale_type","ms_zoning__roof_style","condition1__exterior1st","lot_config__bldg_type","central_air__sale_condition","roof_style__garage_type","condition1__bldg_type","condition1__misc_feature","bldg_type__misc_feature","ms_zoning__lot_config","land_contour__bldg_type","ms_zoning__condition1","ms_sub_class__lot_config","alley__land_contour","heating__sale_type","lot_config__exterior2nd","house_style__sale_type","land_contour__lot_config","ms_zoning__heating","lot_config__garage_type","alley__sale_condition","bldg_type__roof_style","lot_config__central_air","lot_config__foundation","lot_config__exterior1st","condition1__mas_vnr_type","neighborhood__heating","roof_style__central_air","condition1__sale_type","lot_config__sale_condition","central_air__misc_feature","alley__lot_config","mas_vnr_type__misc_feature","garage_type__misc_feature","alley__sale_type","condition1__central_air","land_contour__sale_type","mas_vnr_type__heating","ms_zoning__misc_feature","lot_config__house_style","exterior2nd__misc_feature","roof_style__heating","lot_config__mas_vnr_type","land_contour__condition1","lot_config__sale_type","alley__misc_feature","condition1__sale_condition","lot_config__misc_feature","neighborhood__misc_feature","condition1__heating","exterior1st__misc_feature","lot_config__heating","misc_feature__sale_type","house_style__misc_feature","land_contour__heating","misc_feature__sale_condition","heating__sale_condition","roof_style__sale_type","land_contour__misc_feature","heating__misc_feature"],["   0","   0","   0","   0","   0","   0","3e-321","8.39e-238","2.44e-214","1.31e-173","1.33e-166","5.22e-165","5.6e-127","1.97e-122","3.14e-120","8.83e-116","5.83e-114","9.34e-111","4.42e-106","5.87e-99","4.14e-93","6.37e-92","1.29e-91","1.23e-72","1.8e-66","6.48e-66","3.7e-62","6.69e-59","2.09e-58","4.07e-54","2.04e-53","6.89e-50","3.14e-47","2.63e-46","1.71e-44","1.32e-43","1.93e-43","5.58e-43","5.56e-42","3.85e-41","1.82e-39","1.75e-38","5.25e-37","5.9e-37","4.27e-36","2.46e-35","9.01e-35","4.57e-34","2.97e-33","6.7e-33","7.87e-33","7e-32","1.77e-31","3.44e-31","5.56e-31","2.16e-30","3.35e-29","2.03e-28","4.32e-28","5.08e-28","1.22e-27","1.24e-27","3.07e-27","4.41e-27","3.53e-26","8.74e-26","3.4e-25","1.08e-24","5.39e-24","1.18e-23","3.33e-23","2.37e-22","2.53e-22","8.37e-22","1.82e-21","3.29e-21","3.77e-20","8.92e-20","1.07e-19","1.69e-19","2.74e-19","3.44e-19","6.42e-19","9.91e-18","1.39e-17","6.75e-16","6.85e-16","9.98e-16","7.17e-15","9.26e-15","1.48e-14","5.76e-14","1.87e-13","4.08e-13","4.41e-12","8.44e-11","1.13e-10","1.52e-10","2.5e-10","2.52e-10","5.19e-10","6.66e-10","9.77e-10","3.17e-09","8.49e-09","1.12e-08","3.13e-08","3.13e-08","5.09e-08","6.22e-08","6.47e-08","8.93e-08","9.55e-08","1.18e-07","1.91e-07","3.23e-07","3.57e-07","3.7e-07","8.41e-07","1.63e-06","2.12e-06","3.72e-06","4.98e-06","5.86e-06","7.47e-06","1.72e-05","1.98e-05","2.59e-05","2.61e-05","9.38e-05","0.000101","0.00016","0.000192","0.000232","0.000262","0.000353","0.000424","0.000494","0.00052","0.000846","0.00105","0.00125","0.00168","0.00192","0.00237","0.00369","0.00533","0.006","0.0106","0.0107","0.0142","0.0314","0.0436","0.0616","0.0733","0.0865","0.0914","0.0934","0.121","0.141","0.168","0.172","0.202","0.202","0.234","0.24","0.259","0.495","0.558","0.569","0.582","0.607","0.642","0.68","0.721","0.747","0.752","0.886","0.889","0.902","0.909","0.938","0.953","0.972","0.992","0.993","0.999","0.999","   1","   1"],[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>feature_pair<\/th>\n      <th>p.value<\/th>\n      <th>sig<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>Table 7 shows that nearly all pairwise comparisons were significant at alpha = 0.05. Thus, the most significant pairs should be assessed further to determine which, if any, factors should be dropped.</p>
+<p><br></p>
+<p>After assessing the 10 chi-square test results with the smallest <em>p</em> values, the following comparisons seem to be the most indicative of collinearity among pairs of unordered factors.</p>
+<div class="cell" data-fig.dim="10in,8in">
+<div class="cell-output-display">
+<p><img src="house_prices_report_files/figure-html/fig8a-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell" data-fig.dim="10in,8in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig8b-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 8. Frequencies of a) building type-MS sub-class and b) exterior 2nd-exterior 1st in the training data</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure 8 illustrates strong patterns of interdependence between <em>ms_sub_class</em> and <em>bldg_type</em> as well as <em>exterior1st</em> and <em>exterior2nd</em>. A review of the 10 comparisons with the smallest <em>p</em>-values (Table 7) indicates that for these two pairs, <em>ms_sub_class</em> and <em>exterior2nd</em> should be dropped. The former is part of the three most significant correlations, and the latter is, by definition, secondary to <em>exterior1st</em>.</p>
+</section>
+</section>
+<section id="v.-feature-engineering" class="level2">
+<h2 class="anchored" data-anchor-id="v.-feature-engineering">V. Feature Engineering</h2>
+<section id="a.-rare-label-encoding" class="level3">
+<h3 class="anchored" data-anchor-id="a.-rare-label-encoding">A. Rare-label encoding</h3>
+<p>Although factors (both unordered and ordered) that exhibited constancy were dropped, many of the remaining ones still contained rare levels. In those cases, the rare levels should be combined together or binned with more common levels such that no level should be considered rare (i.e., composes &lt; 2% of observations). This feature engineering approach was performed for all applicable factors by 1) considering each level’s relationship with <em>sale_price</em>, 2) combining levels by similarity of type, 3) using domain knowledge, and/or 4) simply combining rare levels into some type of ‘Other’ category.</p>
+<section id="unordered-factors" class="level4">
+<h4 class="anchored" data-anchor-id="unordered-factors">1. Unordered factors</h4>
+<p>One example of rare-label encoding involves <em>lot_config</em>.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-ff38923143e6b6a4fc6a" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ff38923143e6b6a4fc6a">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 8. Numbers and percentages of levels of feature lot_config<\/caption>","data":[["Inside","Corner","CulDSac","FR2","FR3"],[1052,263,94,47,4],[72.09999999999999,18,6.44,3.22,0.274]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>level<\/th>\n      <th>n<\/th>\n      <th>percent<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","columnDefs":[{"className":"dt-right","targets":[1,2]}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<div class="cell" data-fig.dim="10in,12in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig9-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 9. Sale price-lot configuration and lot configuration relationship plots</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Table 8 shows that category ‘FR3’ occurs less than 0.3% of the time, well below the 2% threshold. Given that ‘FR3’ is so rare, its relationship with <em>sale_price</em> is less important (which is indicative of the large error bars in the top two plots; Figure 9); thus, it was binned with ‘FR2’ (as these are similar in shape and frequency) to make ‘FR2_3.’</p>
+<p><br></p>
+<p>Below is a summary of how unordered factor levels were combined (Table 9).</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-d2734f07155fb9aa394e" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-d2734f07155fb9aa394e">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 9. Summary of how rare (and non-rare) unordered factor levels were binned<\/caption>","data":[["condition1","condition1","exterior1st","foundation","garage_type","heating","house_style","house_style","lot_config","mas_vnr_type","misc_feature","ms_zoning","neighborhood","neighborhood","neighborhood","roof_style","sale_condition","sale_type"],["NormPos","RRnear","Other","Other","Other","Other","Other","Story_2_2.5","FR2_3","BrkFace_Cmn","MF","Other","Other1","Other2","Other3","Other","Other","Other"],["Norm, PosN, PosA","RRAn, RRAe, RRNn, RRNe","WdShing, Stucco, AsbShng, BrkComm, Stone, AsphShn, CBlock, ImStucc","Slab, Stone, Wood","Basment, CarPort, 2Types","GasW, Grav, Wall, OthW, Floor","Flat, Gambrel, Mansard, Shed","2Story, 2.5Fin","FR2, FR3","BrkFace, BrkCmn","Shed, Gar2, Othr, TenC","RH, RM, C (all)","StoneBr, Veenker","ClearCr, Blmngtn","SWISU, MeadowV, BrDale, NPkVill, Blueste","Flat, Gambrel, Mansard, Shed","Family, Alloca, AdjLand","COD, ConLD, ConLI, ConLw, CWD, Oth, Con"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>factor<\/th>\n      <th>new_or_updated_level<\/th>\n      <th>old_levels<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</section>
+<section id="ordered-factors" class="level4">
+<h4 class="anchored" data-anchor-id="ordered-factors">2. Ordered factors</h4>
+<p>Below is a summary of how ordered factor levels were combined (Table 10).</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-0222287d05fc59c93ad8" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-0222287d05fc59c93ad8">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 10. Summary of how rare (and non-rare) ordered factor levels were binned<\/caption>","data":[["bsmt_cond","bsmt_cond","bsmt_fin_type2","electrical","exter_cond","exter_cond","exter_qual","fence","fireplace_qu","fireplace_qu","functional","garage_cond","garage_cond","garage_qual","garage_qual","heating_qc","land_slope","lot_shape","overall_qual","overall_qual"],["Ex_Gd","Fa_Po","ALQ_GLQ","FuseF_P_Mix","Ex_Gd","Fa_Po","TA_and_less","Ww","Ex_Gd","Fa_Po","Poor","Ex_Gd_TA","Fa_Po","Ex_Gd_TA","Fa_Po","Fa_Po","Mod_Sev","IR2_3","4_and_less","9_10"],["Ex, Gd","Fa, Po","ALQ, GLQ","FuseF, FuseP, Mix","Ex, Gd","Fa, Po","Po, Fa, TA","GdWo, MnWw","Ex, Gd","Fa, Po","Mod, Maj1, Maj2, Sev, Sal","Ex, Gd, TA","Fa, Po","Ex, Gd, TA","Fa, Po","Fa, Po","Mod, Sev","IR2, IR3","1, 2, 3, 4","9, 10"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>ordered_actor<\/th>\n      <th>new_or_updated_level<\/th>\n      <th>old_levels<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","columnDefs":[],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</section>
+</section>
+<section id="b.-feature-scaling" class="level3">
+<h3 class="anchored" data-anchor-id="b.-feature-scaling">B. Feature scaling</h3>
+<p>Feature scaling is performed on numerical predictors to normalize their ranges such that these predictors do not have a differential impact on the model simply as an artifact of differences in scales (ranges).</p>
+<p><br></p>
+<p>Normality of predictors is important to understand before deciding which scaling technique to employ. This was assessed visually using q-q plots.</p>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-3-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-1" role="tab" aria-controls="tabset-3-1" aria-selected="true" href="">1. First subset</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-2" role="tab" aria-controls="tabset-3-2" aria-selected="false" href="">2. Second subset</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-3" role="tab" aria-controls="tabset-3-3" aria-selected="false" href="">3. Third subset</a></li></ul>
+<div class="tab-content">
+<div id="tabset-3-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-3-1-tab">
+<div class="cell" data-fig.dim="11in, 11in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig10a-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 10a. QQ plot of first subset of numerical features</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div id="tabset-3-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-3-2-tab">
+<div class="cell" data-fig.dim="11in, 11in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig10b-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 10b. QQ plot of second subset of numerical features</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div id="tabset-3-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-3-3-tab">
+<div class="cell" data-fig.dim="11in, 11in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig10c-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 10c. QQ plot of third subset of numerical features</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>Many of the q-q plots (e.g., <em>bsmt_fin_sf1</em>, <em>garage_area</em>, <em>lot_area</em>) raise concerns about normal distributions (Figures 10a-c).</p>
+<p><br></p>
+<p>Normality was also assessed statistically with Shapiro tests.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-7b363e9945cfb34daacd" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-7b363e9945cfb34daacd">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0412\" data-max=\"0.975\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"logical\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"width: 100%; display: none;\">\n      <select multiple=\"multiple\" style=\"width: 100%;\" data-options=\"[&quot;true&quot;,&quot;false&quot;]\"><\/select>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 11. Shapiro test results of every numerical feature<\/caption>","data":[["pool_area","misc_val","x3ssn_porch","low_qual_fin_sf","kitchen_abv_gr","bsmt_half_bath","garage_yr_blt","screen_porch","bsmt_fin_sf2","lot_area","enclosed_porch","half_bath","mas_vnr_area","bsmt_full_bath","full_bath","open_porch_sf","fireplaces","x2nd_flr_sf","wood_deck_sf","garage_cars","bsmt_fin_sf1","bedroom_abv_gr","year_remod_add","lot_frontage","yr_sold","total_bsmt_sf","year_built","x1st_flr_sf","gr_liv_area","bsmt_unf_sf","tot_rms_abv_grd","mo_sold","garage_area"],["value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value","value"],[0.0412,0.0582,0.0949,0.098,0.22,0.243,0.268,0.298,0.327,0.351,0.414,0.638,0.641,0.658,0.719,0.727,0.755,0.767,0.769,0.835,0.848,0.85,0.863,0.869,0.897,0.917,0.926,0.927,0.928,0.93,0.9419999999999999,0.969,0.975],["7.11e-65","1.53e-64","8.31e-64","9.59e-64","4.22e-61","1.47e-60","5.84e-60","3.31e-59","1.85e-58","7.93e-58","4.85e-56","4.58e-48","6.34e-48","3.76e-47","4.23e-44","1.14e-43","4.83e-42","2.51e-41","3.23e-41","2.3e-36","2.81e-35","4.12e-35","6.72e-34","2.98e-33","3.42e-30","1.61e-27","2.77e-26","4.51e-26","6.6e-26","1.64e-25","2e-23","3.18e-17","4.02e-15"],[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>predictor<\/th>\n      <th>variable<\/th>\n      <th>statistic<\/th>\n      <th>p<\/th>\n      <th>sig<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":2}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>All numerical predictors were not normally distributed (<em>p</em> &lt; 0.05) per the results of the Shapiro tests (Table 11).</p>
+<p>Thus, given both sets of evidence, normalization is an appropriate feature scaling technique for these predictors. This transformation was applied to the training data.</p>
+</section>
+</section>
+<section id="vi.-cross-validation-and-modelling" class="level2">
+<h2 class="anchored" data-anchor-id="vi.-cross-validation-and-modelling">VI. Cross-Validation and Modelling</h2>
+<p>Following initial data cleaning, imputation, feature scaling, and feature engineering, the training data underwent cross-validation.</p>
+<section id="a.-create-folds" class="level3">
+<h3 class="anchored" data-anchor-id="a.-create-folds">A. Create folds</h3>
+<p>The training data were split into 10 folds prior to model fitting.</p>
+</section>
+<section id="b.-model-training-data" class="level3">
+<h3 class="anchored" data-anchor-id="b.-model-training-data">B. Model training data</h3>
+<p>Three different model types were used in modelling the house price data: decision tree, random forest, and K-nearest neighbor.</p>
+<p>The models were fit to the training data and their metrics were evaluated.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-f6542ce08f1f9138a92d" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f6542ce08f1f9138a92d">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 12. Summary of untuned model-fitting results on cross-validated samples<\/caption>","data":[["random_forest","k-nearest neighbor","decision_tree"],[10,10,10],[27870.78,36806.04,44763.7],[1853.19,2200.13,1562.61],[0.884,0.791,0.6899999999999999],[0.0166,0.0192,0.0196]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>model<\/th>\n      <th>n<\/th>\n      <th>rmse_mean<\/th>\n      <th>rmse_std_err<\/th>\n      <th>rsq_mean<\/th>\n      <th>rsq_std_err<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>The root-mean squared error (RMSE) and r<sup>2</sup> indicate that the random forest model performed the best during cross-validation and thus was selected for hyperparameter tuning (Table 12).</p>
+</section>
+<section id="c.-hyperparameter-tuning-and-model-selection" class="level3">
+<h3 class="anchored" data-anchor-id="c.-hyperparameter-tuning-and-model-selection">C. Hyperparameter tuning and model selection</h3>
+<p>Given computational limitations, only two of three parameters were tuned–<em>tree_depth</em> (maximum depth of the tree) and <em>min_n</em> (minimum number of data points in a node for further splitting)–using five levels each in a regular grid (Table 13).</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-a22ced0a49e4a7c6afe6" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-a22ced0a49e4a7c6afe6">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"2000\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"2\" data-max=\"40\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 13. Combinations of tree_depth and min_n used to tune random forest model<\/caption>","data":[[1,500,1000,1500,2000,1,500,1000,1500,2000,1,500,1000,1500,2000,1,500,1000,1500,2000,1,500,1000,1500,2000],[2,2,2,2,2,11,11,11,11,11,21,21,21,21,21,30,30,30,30,30,40,40,40,40,40]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>trees<\/th>\n      <th>min_n<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[0,1]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>The random forest model was tuned using these hyperparameters on the cross-validation folds.</p>
+<div class="cell" data-fig.dim="10in,10in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig11-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 11. RMSE and R-Squared values of various hyperparameter combinations of a random forest model</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><br></p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-536dd2b7d9496c915d97" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-536dd2b7d9496c915d97">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"2000\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"2\" data-max=\"40\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"27933.75\" data-max=\"50645.68\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1203.07\" data-max=\"3000.5\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.651\" data-max=\"0.883\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0161\" data-max=\"0.0317\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 14. Summary of tuned random forest model results on cross-validated samples<\/caption>","data":[[2000,1000,500,1500,2000,1500,1000,500,2000,1500,1000,500,1000,2000,1500,500,1500,2000,1000,500,1,1,1,1,1],[2,2,2,2,11,11,11,11,21,21,21,21,30,30,30,30,40,40,40,40,11,21,30,40,2],[10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10],[27933.75,27949.97,27964.79,27966.12,28414.63,28417.51,28497.32,28545.85,29182.94,29215.8,29251.9,29277.27,29782.88,29830.34,29908.18,30021.98,30698.98,30729.97,30741.65,30747.03,44574.06,45359.63,45706.93,46517.47,50645.68],[1856.22,1864.05,1913.27,1896.95,1959.38,1910.98,1962.2,2028.6,1937.09,1936.88,1971.89,1968.41,1952.91,1944.92,1950.4,1956.13,1945.59,1956.96,1971.86,1955.47,1203.07,2893.09,3000.5,2423.29,2707.17],[0.883,0.883,0.883,0.882,0.879,0.88,0.878,0.878,0.875,0.874,0.874,0.873,0.871,0.871,0.87,0.869,0.865,0.864,0.865,0.865,0.697,0.6830000000000001,0.6899999999999999,0.666,0.651],[0.0164,0.0166,0.0166,0.0168,0.0172,0.0169,0.0176,0.0176,0.017,0.0171,0.0173,0.0176,0.0176,0.0174,0.0171,0.0173,0.0169,0.0171,0.0173,0.0168,0.0161,0.0291,0.0317,0.0212,0.0299],["Preprocessor1_Model05","Preprocessor1_Model03","Preprocessor1_Model02","Preprocessor1_Model04","Preprocessor1_Model10","Preprocessor1_Model09","Preprocessor1_Model08","Preprocessor1_Model07","Preprocessor1_Model15","Preprocessor1_Model14","Preprocessor1_Model13","Preprocessor1_Model12","Preprocessor1_Model18","Preprocessor1_Model20","Preprocessor1_Model19","Preprocessor1_Model17","Preprocessor1_Model24","Preprocessor1_Model25","Preprocessor1_Model23","Preprocessor1_Model22","Preprocessor1_Model06","Preprocessor1_Model11","Preprocessor1_Model16","Preprocessor1_Model21","Preprocessor1_Model01"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>trees<\/th>\n      <th>min_n<\/th>\n      <th>n<\/th>\n      <th>rmse_mean<\/th>\n      <th>rmse_std_err<\/th>\n      <th>rsq_mean<\/th>\n      <th>rsq_std_err<\/th>\n      <th>.config<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[0,1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>These results indicate that the random forest model with <em>trees</em> (number of trees) = 2000 and <em>min_n</em> = 2 performed the best in cross-validation (Fig. 11; Table 14).</p>
+</section>
+<section id="d.-model-diagnostics" class="level3">
+<h3 class="anchored" data-anchor-id="d.-model-diagnostics">D. Model diagnostics</h3>
+<p>Variable importance was assessed for the selected model.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-9e15014cb7800267f40f" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-9e15014cb7800267f40f">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 15. Importance of each variable in final model<\/caption>","data":[["overall_qual","gr_liv_area","garage_cars","exter_qual","total_bsmt_sf","garage_area","x1st_flr_sf","kitchen_qual","year_built","bsmt_qual","bsmt_fin_sf1","x2nd_flr_sf","garage_yr_blt","full_bath","lot_area","tot_rms_abv_grd","garage_finish","year_remod_add","fireplace_qu","mas_vnr_area","fireplaces","lot_frontage","open_porch_sf","neighborhood","bsmt_unf_sf","bsmt_fin_type1","wood_deck_sf","bedroom_abv_gr","bsmt_exposure","heating_qc","garage_type","foundation","mo_sold","exterior1st","house_style","half_bath","ms_zoning","sale_condition","bsmt_full_bath","roof_style","yr_sold","land_contour","lot_shape","pool_area","central_air","sale_type","mas_vnr_type","screen_porch","lot_config","garage_cond","bldg_type","fence","bsmt_half_bath","garage_qual","enclosed_porch","land_slope","bsmt_cond","bsmt_fin_sf2","functional","exter_cond","bsmt_fin_type2","condition1","kitchen_abv_gr","paved_drive","electrical","alley","low_qual_fin_sf","heating","x3ssn_porch","misc_val","misc_feature"],["1.08e+12","8.29e+11","5.72e+11","5.59e+11","5.17e+11","4.52e+11","4.51e+11","4.17e+11","3.82e+11","3.74e+11","2.79e+11","2.52e+11","2.36e+11","2.17e+11","2.15e+11","1.94e+11","1.78e+11","1.74e+11","1.7e+11","1.39e+11","1.34e+11","1.15e+11","8.62e+10","8.5e+10","7.55e+10","6.17e+10","6.12e+10","5.87e+10","5.26e+10","4.57e+10","4.39e+10","4.37e+10","4.16e+10","4e+10","3.66e+10","3.28e+10","3.27e+10","3.18e+10","3.05e+10","2.8e+10","2.38e+10","2.22e+10","2.15e+10","1.79e+10","1.74e+10","1.71e+10","1.65e+10","1.63e+10","1.47e+10","1.44e+10","1.39e+10","1.37e+10","1.32e+10","1.31e+10","1.21e+10","1.21e+10","1.05e+10","1.04e+10","1.01e+10","9.82e+09","9.62e+09","8.88e+09","8.37e+09","6.04e+09","4.67e+09","4.3e+09","3.99e+09","3.24e+09","2.65e+09","2.19e+09","1.41e+09"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>variable<\/th>\n      <th>importance<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<div class="cell" data-fig.dim="7in,6in">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig12-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 12. Variable importance of tuned random forest model</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>These results indicate that <em>overall_qual</em> was the most important variable with an importance value of 1.09 x 10<sup>12</sup> followed by <em>gr_liv_area</em> and <em>garage_cars</em> (Table 15; Fig. 12).</p>
+<p><br></p>
+<p>Here is a boxplot showing the clear relationship between overall quality (<em>overall_qual</em>) and sale price (Figure 13).</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="house_prices_report_files/figure-html/fig13-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure 13. Boxplot of sale prices by overall quality</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="vii.-prepare-test-data" class="level2">
+<h2 class="anchored" data-anchor-id="vii.-prepare-test-data">VII. Prepare Test Data</h2>
+<p>The test data were prepared in the same manner and using the same methods as the training data (except for creating cross-validation folds).</p>
+<section id="a.-initial-data-cleaning" class="level3">
+<h3 class="anchored" data-anchor-id="a.-initial-data-cleaning">A. Initial data cleaning</h3>
+<p>The same data cleaning steps used on the training data were also applied to the test dataset: 1) converting variable names from camel case to snake case, 2) <em>garage_yr_blt</em> was populated with -1000 if the value was not applicable and NA if missing, 3) all character variables aside from <em>id</em> were converted to factors, and 4) not applicable values of factors were converted to variable-specific classes (e.g., “NG” for “no garage”).</p>
+</section>
+<section id="b.-missingness-assessment-and-imputation" class="level3">
+<h3 class="anchored" data-anchor-id="b.-missingness-assessment-and-imputation">B. Missingness: assessment and imputation</h3>
+<p>Missingness in the test data was assessed visually.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-0e38c18a04e34b766d1c" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-0e38c18a04e34b766d1c">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"227\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0685\" data-max=\"15.5\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 16. Numbers and percents of missingness of each feature in the test data<\/caption>","data":[["lot_frontage","mas_vnr_type","mas_vnr_area","ms_zoning","bsmt_cond","utilities","bsmt_qual","bsmt_exposure","functional","garage_yr_blt","garage_finish","garage_qual","garage_cond","exterior1st","exterior2nd","kitchen_qual","garage_cars","garage_area","sale_type"],[227,16,15,4,3,2,2,2,2,2,2,2,2,1,1,1,1,1,1],[15.5,1.1,1.03,0.274,0.205,0.137,0.137,0.137,0.137,0.137,0.137,0.137,0.137,0.06850000000000001,0.06850000000000001,0.06850000000000001,0.06850000000000001,0.06850000000000001,0.06850000000000001]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>predictor<\/th>\n      <th>n_na<\/th>\n      <th>pct_na<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[1,2]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>Results show that like the training data, <em>lot_frontage</em> had the most missing values (15.5%), followed by <em>mas_vnr_type</em> and <em>mas_vnr_area</em> (with roughly 1% each) and finally 16 other variables had fewer than 0.3% missing values (Table 16).</p>
+<p><br></p>
+<p>Missing values were imputed using a classification and regression tree.</p>
+<div class="cell">
+<div class="cell-output-display">
+
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-2599bf33f98bf530585c" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-2599bf33f98bf530585c">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0651\" data-max=\"9820\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.208\" data-max=\"4960\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1000\" data-max=\"2010\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"7390\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"9400\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"11500\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"2\" data-max=\"56600\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","caption":"<caption style=\"caption-side: top; text-align: left; color:gray;  font-size:100% ;\">Table 17. Missingness data and summary statistics of numerical features in test data<\/caption>","data":[["lot_frontage","lot_area","year_built","year_remod_add","mas_vnr_area","bsmt_fin_sf1","bsmt_fin_sf2","bsmt_unf_sf","total_bsmt_sf","x1st_flr_sf","x2nd_flr_sf","low_qual_fin_sf","gr_liv_area","bsmt_full_bath","bsmt_half_bath","full_bath","half_bath","bedroom_abv_gr","kitchen_abv_gr","tot_rms_abv_grd","fireplaces","garage_yr_blt","garage_cars","garage_area","wood_deck_sf","open_porch_sf","enclosed_porch","x3ssn_porch","screen_porch","pool_area","misc_val","mo_sold","yr_sold"],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[69.2,9820,1970,1980,101,439,52.6,554,1050,1160,326,3.54,1490,0.434,0.06510000000000001,1.57,0.378,2.85,1.04,6.39,0.581,1820,1.77,473,93.2,48.3,24.2,1.79,17.1,1.74,58.2,6.1,2010],[22.7,4960,30.4,21.1,177,455,177,437,444,398,421,44,486,0.531,0.252,0.555,0.503,0.83,0.208,1.51,0.647,662,0.776,217,128,68.90000000000001,67.2,20.2,56.6,30.5,631,2.72,1.3],[21,1470,1880,1950,0,0,0,0,0,407,0,0,407,0,0,0,0,0,0,3,0,-1000,0,0,0,0,0,0,0,0,0,1,2010],[58,7390,1950,1960,0,0,0,219,784,874,0,0,1120,0,0,1,0,2,1,5,0,1960,1,318,0,0,0,0,0,0,0,4,2010],[68,9400,1970,1990,0,350,0,460,988,1080,0,0,1430,0,0,2,0,3,1,6,0,1980,2,480,0,28,0,0,0,0,0,6,2010],[80,11500,2000,2000,164,752,0,798,1300,1380,676,0,1720,1,0,2,1,3,1,7,1,2000,2,576,168,72,0,0,0,0,0,8,2010],[200,56600,2010,2010,1290,4010,1530,2140,5100,5100,1860,1060,5100,3,2,4,2,6,2,15,4,2210,5,1490,1420,742,1010,360,576,800,17000,12,2010],["▃▇▁▁▁","▇▂▁▁▁","▁▂▃▆▇","▅▂▂▃▇","▇▁▁▁▁","▇▂▁▁▁","▇▁▁▁▁","▇▆▂▁▁","▇▇▁▁▁","▇▃▁▁▁","▇▃▂▁▁","▇▁▁▁▁","▇▇▁▁▁","▇▆▁▁▁","▇▁▁▁▁","▁▇▇▁▁","▇▁▅▁▁","▁▃▇▂▁","▁▁▇▁▁","▅▇▃▁▁","▇▇▁▁▁","▁▁▁▁▇","▅▇▂▁▁","▃▇▃▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▅▆▇▃▃","▇▇▇▇▃"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>skim_variable<\/th>\n      <th>n_missing<\/th>\n      <th>complete_rate<\/th>\n      <th>numeric.mean<\/th>\n      <th>numeric.sd<\/th>\n      <th>numeric.p0<\/th>\n      <th>numeric.p25<\/th>\n      <th>numeric.p50<\/th>\n      <th>numeric.p75<\/th>\n      <th>numeric.p100<\/th>\n      <th>numeric.hist<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"ltipr","columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><br></p>
+<p>Note that two <em>utilities</em> values remained missing following imputation (Table 17), but this variable would subsequently be dropped due to low variance.</p>
+</section>
+<section id="c.-feature-selection-drop-low-variance-and-highly-correlated-features" class="level3">
+<h3 class="anchored" data-anchor-id="c.-feature-selection-drop-low-variance-and-highly-correlated-features">C. Feature selection: drop low ‘variance’ and highly correlated features</h3>
+<p>Like the training data, low-variance (i..e, <em>street</em>, <em>utilities</em>, <em>condition2</em>, <em>pool_qc</em>, <em>roof_matl</em>) and highly correlated (i.e., <em>overall_cond</em>, <em>ms_sub_class</em>, <em>exterior2nd</em>) features were removed from the test data set.</p>
+</section>
+<section id="d.-feature-engineering-rare-label-encoding-and-feature-scaling" class="level3">
+<h3 class="anchored" data-anchor-id="d.-feature-engineering-rare-label-encoding-and-feature-scaling">D. Feature engineering: rare-label encoding and feature scaling</h3>
+<p>Rare feature classes from the test data were binned in the same manner as the training data (Tables 9 &amp; 10) and numerical features were normalized.</p>
+<p>Now that the test data has been prepared in the same manner as the training data, model evaluation can begin.</p>
+</section>
+</section>
+<section id="viii.-model-evaluation" class="level2">
+<h2 class="anchored" data-anchor-id="viii.-model-evaluation">VIII. Model Evaluation</h2>
+<section id="a.-predict-sale-prices" class="level3">
+<h3 class="anchored" data-anchor-id="a.-predict-sale-prices">A. Predict sale prices</h3>
+<p>Using the finalized random forest model with <em>trees</em> = 2000 and <em>min_n</em> = 2, the model was evaluated on the test data. The <em>sales_price</em> values were predicted for each row of the test data.</p>
+</section>
+<section id="b.-quantify-performance-on-test-data" class="level3">
+<h3 class="anchored" data-anchor-id="b.-quantify-performance-on-test-data">B. Quantify performance on test data</h3>
+<p>The predicted <em>sales_price</em> values associated with each <em>id</em> were submitted to Kaggle for scoring. This model scored <strong>0.16399</strong>, which is a measure of the RMSE on logged predicted and observed sales prices.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
